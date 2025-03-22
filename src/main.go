@@ -10,7 +10,10 @@ import (
 	"syscall"
 	"time"
 
-	"honnef.co/go/tools/config"
+	"github.com/timoruohomaki/open311-to-Go/api"
+	"github.com/timoruohomaki/open311-to-Go/config"
+	"github.com/timoruohomaki/open311-to-Go/domain/repository"
+	"github.com/timoruohomaki/open311-to-Go/pkg/logger"
 )
 
 func main() {
@@ -33,8 +36,21 @@ func main() {
 	}
 	defer log.Close()
 
+	// Initialize MongoDB connection
+	db, err := repository.NewMongoDBConnection(cfg.MongoDB)
+	if err != nil {
+		log.Fatalf("Failed to connect to MongoDB: %v", err)
+		os.Exit(1)
+	}
+	defer db.Disconnect()
+
+	// Initialize repositories
+	userRepo := repository.NewMongoUserRepository(db)
+	serviceRepo := repository.NewMongoServiceRepository(db)
+	// requestRepo := repository.NewMongoRequestRepository(db)
+
 	// Initialize router
-	router := api.NewRouter(log, cfg)
+	router := api.NewRouter(log, cfg, userRepo, serviceRepo)
 
 	// Create server
 	srv := &http.Server{
@@ -49,7 +65,7 @@ func main() {
 	go func() {
 		log.Infof("Starting server on port %d", cfg.Server.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", err)
+			log.Fatalf("Failed to start API listener: %v", err)
 		}
 	}()
 
@@ -58,14 +74,14 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Info("Shutting down server...")
+	log.Info("Shutting down API listener...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Server.ShutdownTimeoutSeconds)*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
+		log.Fatalf("API listener forced to shutdown: %v", err)
 	}
 
-	log.Info("Server exited properly")
+	log.Info("API listener exited properly")
 }
