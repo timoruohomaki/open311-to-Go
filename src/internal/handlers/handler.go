@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/timoruohomaki/open311-to-Go/pkg/httputil"
 	"github.com/timoruohomaki/open311-to-Go/pkg/logger"
-	"github.com/timoruohomaki/open311-to-Go/pkg/response"
 )
 
 // BaseHandler provides common handler functionality
@@ -30,7 +30,7 @@ func (h *BaseHandler) DecodeRequest(r *http.Request, v interface{}) error {
 
 // SendResponse sends a response in the appropriate format
 func (h *BaseHandler) SendResponse(w http.ResponseWriter, r *http.Request, statusCode int, data interface{}) {
-	if err := response.Send(w, r, statusCode, data); err != nil {
+	if err := httputil.Send(w, r, statusCode, data); err != nil {
 		h.log.Errorf("Failed to send response: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
@@ -38,7 +38,7 @@ func (h *BaseHandler) SendResponse(w http.ResponseWriter, r *http.Request, statu
 
 // SendError sends an error response
 func (h *BaseHandler) SendError(w http.ResponseWriter, r *http.Request, statusCode int, message string) {
-	if err := response.SendError(w, r, statusCode, message); err != nil {
+	if err := httputil.SendError(w, r, statusCode, message); err != nil {
 		h.log.Errorf("Failed to send error response: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}

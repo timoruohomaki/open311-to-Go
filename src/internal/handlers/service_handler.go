@@ -6,12 +6,12 @@ import (
 	"strings"
 
 	"github.com/timoruohomaki/open311-to-Go/domain/models"
-	"github.com/timoruohomaki/open311-to-Go/domain/repository"
+	"github.com/timoruohomaki/open311-to-Go/internal/repository"
+	"github.com/timoruohomaki/open311-to-Go/pkg/httputil"
 	"github.com/timoruohomaki/open311-to-Go/pkg/logger"
-	"github.com/timoruohomaki/open311-to-Go/pkg/router"
 )
 
-// ServiceHandler handles product-related requests
+// ServiceHandler handles service-related requests
 type ServiceHandler struct {
 	BaseHandler
 	repo repository.ServiceRepository
@@ -35,7 +35,7 @@ func (h *ServiceHandler) GetServices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// For XML responses, wrap in services struct
+	// For XML responses, wrap in Services struct
 	if strings.Contains(r.Header.Get("Accept"), "application/xml") {
 		h.SendResponse(w, r, http.StatusOK, models.Services{Items: services})
 	} else {
@@ -43,96 +43,96 @@ func (h *ServiceHandler) GetServices(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GetProduct returns a specific product
-func (h *ServiceHandler) GetProduct(w http.ResponseWriter, r *http.Request) {
-	id := router.GetPathParam(r, "id")
+// GetService returns a specific service
+func (h *ServiceHandler) GetService(w http.ResponseWriter, r *http.Request) {
+	id := httputil.GetPathParam(r, "id")
 	if id == "" {
-		h.SendError(w, r, http.StatusBadRequest, "Invalid product ID")
+		h.SendError(w, r, http.StatusBadRequest, "Invalid service ID")
 		return
 	}
 
-	// Get product from repository
-	product, err := h.repo.FindByID(r.Context(), id)
+	// Get service from repository
+	service, err := h.repo.FindByID(r.Context(), id)
 	if err != nil {
 		switch {
 		case errors.Is(err, repository.ErrNotFound):
-			h.SendError(w, r, http.StatusNotFound, "Product not found")
+			h.SendError(w, r, http.StatusNotFound, "Service not found")
 		case errors.Is(err, repository.ErrInvalidID):
-			h.SendError(w, r, http.StatusBadRequest, "Invalid product ID format")
+			h.SendError(w, r, http.StatusBadRequest, "Invalid service ID format")
 		default:
-			h.log.Errorf("Failed to get product: %v", err)
-			h.SendError(w, r, http.StatusInternalServerError, "Failed to get product")
+			h.log.Errorf("Failed to get service: %v", err)
+			h.SendError(w, r, http.StatusInternalServerError, "Failed to get service")
 		}
 		return
 	}
 
-	h.SendResponse(w, r, http.StatusOK, product)
+	h.SendResponse(w, r, http.StatusOK, service)
 }
 
-// CreateProduct creates a new product
-func (h *ServiceHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
-	var product models.Service
+// CreateService creates a new service
+func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
+	var service models.Service
 
-	if err := h.DecodeRequest(r, &product); err != nil {
+	if err := h.DecodeRequest(r, &service); err != nil {
 		h.SendError(w, r, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 
 	// Basic validation
-	if product.Name == "" || product.Price <= 0 {
-		h.SendError(w, r, http.StatusBadRequest, "Name and a positive price are required")
+	if service.Name == "" || service.Description == "" {
+		h.SendError(w, r, http.StatusBadRequest, "Name and description are required")
 		return
 	}
 
-	// Create product in repository
-	createdProduct, err := h.repo.Create(r.Context(), product)
+	// Create service in repository
+	createdService, err := h.repo.Create(r.Context(), service)
 	if err != nil {
-		h.log.Errorf("Failed to create product: %v", err)
-		h.SendError(w, r, http.StatusInternalServerError, "Failed to create product")
+		h.log.Errorf("Failed to create service: %v", err)
+		h.SendError(w, r, http.StatusInternalServerError, "Failed to create service")
 		return
 	}
 
-	h.SendResponse(w, r, http.StatusCreated, createdProduct)
+	h.SendResponse(w, r, http.StatusCreated, createdService)
 }
 
-// UpdateProduct updates an existing product
-func (h *ServiceHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
-	id := router.GetPathParam(r, "id")
+// UpdateService updates an existing service
+func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
+	id := httputil.GetPathParam(r, "id")
 	if id == "" {
-		h.SendError(w, r, http.StatusBadRequest, "Invalid product ID")
+		h.SendError(w, r, http.StatusBadRequest, "Invalid service ID")
 		return
 	}
 
-	var product models.Service
-	if err := h.DecodeRequest(r, &product); err != nil {
+	var service models.Service
+	if err := h.DecodeRequest(r, &service); err != nil {
 		h.SendError(w, r, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 
 	// Set ID from path parameter
-	product.ID = id
+	service.ID = id
 
-	// Update product in repository
-	updatedProduct, err := h.repo.Update(r.Context(), product)
+	// Update service in repository
+	updatedService, err := h.repo.Update(r.Context(), service)
 	if err != nil {
 		switch {
 		case errors.Is(err, repository.ErrNotFound):
-			h.SendError(w, r, http.StatusNotFound, "Product not found")
+			h.SendError(w, r, http.StatusNotFound, "Service not found")
 		case errors.Is(err, repository.ErrInvalidID):
-			h.SendError(w, r, http.StatusBadRequest, "Invalid product ID format")
+			h.SendError(w, r, http.StatusBadRequest, "Invalid service ID format")
 		default:
-			h.log.Errorf("Failed to update product: %v", err)
-			h.SendError(w, r, http.StatusInternalServerError, "Failed to update product")
+			h.log.Errorf("Failed to update service: %v", err)
+			h.SendError(w, r, http.StatusInternalServerError, "Failed to update service")
 		}
 		return
 	}
 
-	h.SendResponse(w, r, http.StatusOK, updatedProduct)
+	h.SendResponse(w, r, http.StatusOK, updatedService)
 }
 
 // DeleteService deletes a service
 func (h *ServiceHandler) DeleteService(w http.ResponseWriter, r *http.Request) {
-	id := router.GetPathParam(r, "id")
+	id := httputil.GetPathParam(r, "id")
 	if id == "" {
 		h.SendError(w, r, http.StatusBadRequest, "Invalid service ID")
 		return

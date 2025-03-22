@@ -1,4 +1,5 @@
-package response
+// pkg/httputil/response.go
+package httputil
 
 import (
 	"encoding/json"

@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/timoruohomaki/open311-to-Go/config"
-	"github.com/timoruohomaki/open311-to-Go/domain/repository"
-	"github.com/timoruohomaki/open311-to-Go/pkg/app"
+	"github.com/timoruohomaki/open311-to-Go/internal/api"
+	"github.com/timoruohomaki/open311-to-Go/internal/repository"
 	"github.com/timoruohomaki/open311-to-Go/pkg/logger"
 )
 
@@ -44,17 +44,13 @@ func main() {
 	}
 	defer db.Disconnect()
 
-	// Initialize repositories
-	userRepo := repository.NewMongoUserRepository(db)
-	serviceRepo := repository.NewMongoServiceRepository(db)
-
-	// Initialize application
-	application := app.New(cfg, log, userRepo, serviceRepo)
+	// Initialize API
+	api := api.New(cfg, log, db)
 
 	// Create server
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
-		Handler:      application.Handler(),
+		Handler:      api.Handler(),
 		ReadTimeout:  time.Duration(cfg.Server.ReadTimeoutSeconds) * time.Second,
 		WriteTimeout: time.Duration(cfg.Server.WriteTimeoutSeconds) * time.Second,
 		IdleTimeout:  time.Duration(cfg.Server.IdleTimeoutSeconds) * time.Second,

@@ -4,12 +4,6 @@ import (
 	"context"
 	"net/http"
 	"strings"
-
-	"github.com/timoruohomaki/open311-to-Go/api/handlers"
-	"github.com/timoruohomaki/open311-to-Go/api/middleware"
-	"github.com/timoruohomaki/open311-to-Go/config"
-	"github.com/timoruohomaki/open311-to-Go/domain/repository"
-	"github.com/timoruohomaki/open311-to-Go/pkg/logger"
 )
 
 // Route defines an HTTP route
@@ -25,41 +19,12 @@ type Router struct {
 	middleware []func(http.Handler) http.Handler
 }
 
-// NewRouter creates a new router with all routes configured
-func NewRouter(log logger.Logger, cfg *config.Config, userRepo repository.UserRepository, productRepo repository.ServiceRepository) http.Handler {
-	router := &Router{
+// New creates a new router
+func New() *Router {
+	return &Router{
 		routes:     []Route{},
 		middleware: []func(http.Handler) http.Handler{},
 	}
-
-	// Add middleware
-	router.Use(middleware.LoggingMiddleware(log))
-	router.Use(middleware.ContentTypeMiddleware)
-
-	// Initialize handlers
-	userHandler := handlers.NewUserHandler(log, userRepo)
-	serviceHandler := handlers.NewServiceHandler(log, serviceRepo)
-
-	// Register routes
-	// User routes
-	router.AddRoute("GET", "/api/v1/users", userHandler.GetUsers)
-	router.AddRoute("GET", "/api/v1/users/", userHandler.GetUsers) // Trailing slash version
-	router.AddRoute("GET", "/api/v1/users/{id}", userHandler.GetUser)
-	router.AddRoute("POST", "/api/v1/users", userHandler.CreateUser)
-	router.AddRoute("PUT", "/api/v1/users/{id}", userHandler.UpdateUser)
-	router.AddRoute("DELETE", "/api/v1/users/{id}", userHandler.DeleteUser)
-
-	// Service routes
-	router.AddRoute("GET", "/api/v1/services", serviceHandler.GetServices)
-	router.AddRoute("GET", "/api/v1/services/", serviceHandler.GetServices) // Trailing slash version
-	router.AddRoute("GET", "/api/v1/services/{id}", serviceHandler.GetService)
-	router.AddRoute("POST", "/api/v1/services", serviceHandler.CreateService)
-	router.AddRoute("PUT", "/api/v1/services/{id}", serviceHandler.UpdateService)
-	router.AddRoute("DELETE", "/api/v1/services/{id}", serviceHandler.DeleteService)
-
-	// Request routes
-
-	return router
 }
 
 // Use adds middleware to the router
@@ -67,8 +32,8 @@ func (r *Router) Use(middleware func(http.Handler) http.Handler) {
 	r.middleware = append(r.middleware, middleware)
 }
 
-// AddRoute adds a route to the router
-func (r *Router) AddRoute(method, pattern string, handler http.HandlerFunc) {
+// Handle adds a route to the router
+func (r *Router) Handle(method, pattern string, handler http.HandlerFunc) {
 	r.routes = append(r.routes, Route{
 		Method:  method,
 		Pattern: pattern,
@@ -96,7 +61,7 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			// Set path parameters in request context
 			ctx := req.Context()
 			for key, value := range params {
-				ctx = context.WithValue(ctx, pathParamKey(key), value)
+				ctx = context.WithValue(ctx, PathParamKey(key), value)
 			}
 
 			// Execute handler with updated context
@@ -116,8 +81,8 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	handler.ServeHTTP(w, req)
 }
 
-// pathParamKey type to avoid context key collisions
-type pathParamKey string
+// PathParamKey type for context keys
+type PathParamKey string
 
 // matchRoute checks if a URL path matches a route pattern and extracts parameters
 func matchRoute(pattern, path string) (map[string]string, bool) {
@@ -145,13 +110,4 @@ func matchRoute(pattern, path string) (map[string]string, bool) {
 	}
 
 	return params, true
-}
-
-// GetPathParam retrieves a path parameter from the request context
-func GetPathParam(r *http.Request, name string) string {
-	value := r.Context().Value(pathParamKey(name))
-	if value == nil {
-		return ""
-	}
-	return value.(string)
 }

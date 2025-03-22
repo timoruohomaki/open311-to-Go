@@ -1,3 +1,4 @@
+// internal/repository/repository.go
 package repository
 
 import (
@@ -36,7 +37,7 @@ type ServiceRepository interface {
 	Repository
 	FindAll(ctx context.Context) ([]models.Service, error)
 	FindByID(ctx context.Context, id string) (models.Service, error)
-	Create(ctx context.Context, product models.Service) (models.Service, error)
-	Update(ctx context.Context, product models.Service) (models.Service, error)
+	Create(ctx context.Context, service models.Service) (models.Service, error)
+	Update(ctx context.Context, service models.Service) (models.Service, error)
 	Delete(ctx context.Context, id string) error
 }

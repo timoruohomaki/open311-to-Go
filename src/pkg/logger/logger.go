@@ -1,10 +1,11 @@
+// pkg/logger/logger.go
 package logger
 
 import (
 	"fmt"
 	"io"
-	"log/syslog"
 	"os"
+	"runtime"
 
 	"github.com/sirupsen/logrus"
 )
@@ -30,14 +31,19 @@ type logrusLogger struct {
 	hooks  []io.Closer
 }
 
-// New creates a new logger
-func New(cfg struct {
+// Config represents logger configuration
+type Config struct {
 	Level          string `json:"level"`
 	Format         string `json:"format"`
 	ToSyslog       bool   `json:"toSyslog"`
 	SyslogFacility string `json:"syslogFacility"`
+	SyslogHost     string `json:"syslogHost"`
+	SyslogPort     string `json:"syslogPort"`
 	SyslogTag      string `json:"syslogTag"`
-}) (Logger, error) {
+}
+
+// New creates a new logger
+func New(cfg Config) (Logger, error) {
 	logger := logrus.New()
 
 	// Set log level
@@ -66,47 +72,11 @@ func New(cfg struct {
 		hooks:  make([]io.Closer, 0),
 	}
 
-	// Add syslog hook if configured
-	if cfg.ToSyslog {
-		// Parse facility
-		var facility syslog.Priority
-		switch cfg.SyslogFacility {
-		case "local0":
-			facility = syslog.LOG_LOCAL0
-		case "local1":
-			facility = syslog.LOG_LOCAL1
-		case "local2":
-			facility = syslog.LOG_LOCAL2
-		case "local3":
-			facility = syslog.LOG_LOCAL3
-		case "local4":
-			facility = syslog.LOG_LOCAL4
-		case "local5":
-			facility = syslog.LOG_LOCAL5
-		case "local6":
-			facility = syslog.LOG_LOCAL6
-		case "local7":
-			facility = syslog.LOG_LOCAL7
-		default:
-			facility = syslog.LOG_LOCAL0
-		}
-
-		// Set syslog tag
-		tag := cfg.SyslogTag
-		if tag == "" {
-			tag = "open311api"
-		}
-
-		// Create syslog hook
-		hook, err := logrus.NewSyslogHook("", "", facility, tag)
+	// Add syslog hook if configured and on a supported platform
+	if cfg.ToSyslog && runtime.GOOS != "windows" {
+		err := addSyslogHook(logger, cfg, &l.hooks)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create syslog hook: %v", err)
-		}
-		logger.AddHook(hook)
-
-		// Add hook to the closer list if it implements io.Closer
-		if closer, ok := hook.(io.Closer); ok {
-			l.hooks = append(l.hooks, closer)
+			return nil, err
 		}
 	}
 

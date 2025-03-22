@@ -13,22 +13,22 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// MongoServiceRepository implements ProductRepository interface using MongoDB
+// MongoServiceRepository implements ServiceRepository interface using MongoDB
 type MongoServiceRepository struct {
 	db         *MongoDB
 	collection *mongo.Collection
 }
 
-// NewMongoProductRepository creates a new MongoProductRepository
+// NewMongoServiceRepository creates a new MongoServiceRepository
 func NewMongoServiceRepository(db *MongoDB) ServiceRepository {
 	return &MongoServiceRepository{
 		db:         db,
-		collection: db.GetCollection("Services"),
+		collection: db.GetCollection("services"),
 	}
 }
 
 // FindAll retrieves all services from the database
-func (r *MongoServiceRepository) FindAll(ctx context.Context) ([]models.Product, error) {
+func (r *MongoServiceRepository) FindAll(ctx context.Context) ([]models.Service, error) {
 	// Create operation context with timeout
 	opCtx, cancel := r.db.GetContext()
 	defer cancel()
@@ -46,7 +46,7 @@ func (r *MongoServiceRepository) FindAll(ctx context.Context) ([]models.Product,
 	defer cursor.Close(opCtx)
 
 	// Decode services
-	var services []models.Product
+	var services []models.Service
 	if err := cursor.All(opCtx, &services); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrDatabase, err)
 	}
@@ -54,8 +54,8 @@ func (r *MongoServiceRepository) FindAll(ctx context.Context) ([]models.Product,
 	return services, nil
 }
 
-// FindByID retrieves a product by ID from the database
-func (r *MongoServiceRepository) FindByID(ctx context.Context, id string) (models.Product, error) {
+// FindByID retrieves a service by ID from the database
+func (r *MongoServiceRepository) FindByID(ctx context.Context, id string) (models.Service, error) {
 	// Create operation context with timeout
 	opCtx, cancel := r.db.GetContext()
 	defer cancel()
@@ -68,24 +68,24 @@ func (r *MongoServiceRepository) FindByID(ctx context.Context, id string) (model
 	// Convert ID to ObjectID
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return models.Product{}, ErrInvalidID
+		return models.Service{}, ErrInvalidID
 	}
 
-	// Find product by ID
-	var product models.Product
-	err = r.collection.FindOne(opCtx, bson.M{"_id": objectID}).Decode(&product)
+	// Find service by ID
+	var service models.Service
+	err = r.collection.FindOne(opCtx, bson.M{"_id": objectID}).Decode(&service)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return models.Product{}, ErrNotFound
+			return models.Service{}, ErrNotFound
 		}
-		return models.Product{}, fmt.Errorf("%w: %v", ErrDatabase, err)
+		return models.Service{}, fmt.Errorf("%w: %v", ErrDatabase, err)
 	}
 
-	return product, nil
+	return service, nil
 }
 
-// Create adds a new product to the database
-func (r *MongoServiceRepository) Create(ctx context.Context, product models.Product) (models.Product, error) {
+// Create adds a new service to the database
+func (r *MongoServiceRepository) Create(ctx context.Context, service models.Service) (models.Service, error) {
 	// Create operation context with timeout
 	opCtx, cancel := r.db.GetContext()
 	defer cancel()
@@ -97,23 +97,23 @@ func (r *MongoServiceRepository) Create(ctx context.Context, product models.Prod
 
 	// Set creation and update timestamps
 	now := time.Now()
-	product.CreatedAt = now
-	product.UpdatedAt = now
+	service.CreatedAt = now
+	service.UpdatedAt = now
 
-	// Insert product
-	result, err := r.collection.InsertOne(opCtx, product)
+	// Insert service
+	result, err := r.collection.InsertOne(opCtx, service)
 	if err != nil {
-		return models.Product{}, fmt.Errorf("%w: %v", ErrDatabase, err)
+		return models.Service{}, fmt.Errorf("%w: %v", ErrDatabase, err)
 	}
 
 	// Set ID
-	product.ID = result.InsertedID.(primitive.ObjectID).Hex()
+	service.ID = result.InsertedID.(primitive.ObjectID).Hex()
 
-	return product, nil
+	return service, nil
 }
 
-// Update modifies an existing product in the database
-func (r *MongoServiceRepository) Update(ctx context.Context, product models.Product) (models.Product, error) {
+// Update modifies an existing service in the database
+func (r *MongoServiceRepository) Update(ctx context.Context, service models.Service) (models.Service, error) {
 	// Create operation context with timeout
 	opCtx, cancel := r.db.GetContext()
 	defer cancel()
@@ -124,25 +124,28 @@ func (r *MongoServiceRepository) Update(ctx context.Context, product models.Prod
 	}
 
 	// Convert ID to ObjectID
-	objectID, err := primitive.ObjectIDFromHex(product.ID)
+	objectID, err := primitive.ObjectIDFromHex(service.ID)
 	if err != nil {
-		return models.Product{}, ErrInvalidID
+		return models.Service{}, ErrInvalidID
 	}
 
 	// Set update timestamp
-	product.UpdatedAt = time.Now()
+	service.UpdatedAt = time.Now()
 
-	// Update product
+	// Update service
 	update := bson.M{
 		"$set": bson.M{
-			"name":        product.Name,
-			"description": product.Description,
-			"price":       product.Price,
-			"updatedAt":   product.UpdatedAt,
+			"name":        service.Name,
+			"description": service.Description,
+			"metadata":    service.Metadata,
+			"keywords":    service.Keywords,
+			"group":       service.Group,
+			"status":      service.Status,
+			"updatedAt":   service.UpdatedAt,
 		},
 	}
 
-	// Find and update product
+	// Find and update service
 	result := r.collection.FindOneAndUpdate(
 		opCtx,
 		bson.M{"_id": objectID},
@@ -153,21 +156,21 @@ func (r *MongoServiceRepository) Update(ctx context.Context, product models.Prod
 	// Check for errors
 	if result.Err() != nil {
 		if errors.Is(result.Err(), mongo.ErrNoDocuments) {
-			return models.Product{}, ErrNotFound
+			return models.Service{}, ErrNotFound
 		}
-		return models.Product{}, fmt.Errorf("%w: %v", ErrDatabase, result.Err())
+		return models.Service{}, fmt.Errorf("%w: %v", ErrDatabase, result.Err())
 	}
 
-	// Decode updated product
-	var updatedProduct models.Product
-	if err := result.Decode(&updatedProduct); err != nil {
-		return models.Product{}, fmt.Errorf("%w: %v", ErrDatabase, err)
+	// Decode updated service
+	var updatedService models.Service
+	if err := result.Decode(&updatedService); err != nil {
+		return models.Service{}, fmt.Errorf("%w: %v", ErrDatabase, err)
 	}
 
-	return updatedProduct, nil
+	return updatedService, nil
 }
 
-// Delete removes a product from the database
+// Delete removes a service from the database
 func (r *MongoServiceRepository) Delete(ctx context.Context, id string) error {
 	// Create operation context with timeout
 	opCtx, cancel := r.db.GetContext()
@@ -184,13 +187,13 @@ func (r *MongoServiceRepository) Delete(ctx context.Context, id string) error {
 		return ErrInvalidID
 	}
 
-	// Delete product
+	// Delete service
 	result, err := r.collection.DeleteOne(opCtx, bson.M{"_id": objectID})
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrDatabase, err)
 	}
 
-	// Check if product was found
+	// Check if service was found
 	if result.DeletedCount == 0 {
 		return ErrNotFound
 	}
