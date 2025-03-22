@@ -1,9 +1,8 @@
 # Source Code
 
-## Repository structure:
+### Project structure:
 
-.
-+---  src/
-|  |  main.go
-|  |  go.mod
-|  |  go.sum
+├── src/
+|  ├──  main.go
+|  ├──  go.mod
+|  ├──  go.sum
