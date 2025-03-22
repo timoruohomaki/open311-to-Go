@@ -130,28 +130,28 @@ func (h *ServiceHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	h.SendResponse(w, r, http.StatusOK, updatedProduct)
 }
 
-// DeleteProduct deletes a product
-func (h *ServiceHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
+// DeleteService deletes a service
+func (h *ServiceHandler) DeleteService(w http.ResponseWriter, r *http.Request) {
 	id := api.GetPathParam(r, "id")
 	if id == "" {
-		h.SendError(w, r, http.StatusBadRequest, "Invalid product ID")
+		h.SendError(w, r, http.StatusBadRequest, "Invalid service ID")
 		return
 	}
 
-	// Delete product from repository
+	// Delete service from repository
 	err := h.repo.Delete(r.Context(), id)
 	if err != nil {
 		switch {
 		case errors.Is(err, repository.ErrNotFound):
-			h.SendError(w, r, http.StatusNotFound, "Product not found")
+			h.SendError(w, r, http.StatusNotFound, "Service not found")
 		case errors.Is(err, repository.ErrInvalidID):
-			h.SendError(w, r, http.StatusBadRequest, "Invalid product ID format")
+			h.SendError(w, r, http.StatusBadRequest, "Invalid service ID format")
 		default:
-			h.log.Errorf("Failed to delete product: %v", err)
-			h.SendError(w, r, http.StatusInternalServerError, "Failed to delete product")
+			h.log.Errorf("Failed to delete service: %v", err)
+			h.SendError(w, r, http.StatusInternalServerError, "Failed to delete service")
 		}
 		return
 	}
 
-	h.SendResponse(w, r, http.StatusOK, map[string]string{"message": "Product deleted successfully"})
+	h.SendResponse(w, r, http.StatusOK, map[string]string{"message": "Service deleted successfully"})
 }

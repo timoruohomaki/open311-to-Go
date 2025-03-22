@@ -12,6 +12,7 @@ import (
 
 	"github.com/timoruohomaki/open311-to-Go/api"
 	"github.com/timoruohomaki/open311-to-Go/config"
+
 	"github.com/timoruohomaki/open311-to-Go/domain/repository"
 	"github.com/timoruohomaki/open311-to-Go/pkg/logger"
 )

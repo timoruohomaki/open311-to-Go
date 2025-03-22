@@ -8,6 +8,7 @@ import (
 	"github.com/timoruohomaki/open311-to-Go/api/handlers"
 	"github.com/timoruohomaki/open311-to-Go/api/middleware"
 	"github.com/timoruohomaki/open311-to-Go/config"
+	"github.com/timoruohomaki/open311-to-Go/domain/repository"
 	"github.com/timoruohomaki/open311-to-Go/pkg/logger"
 )
 
@@ -25,7 +26,7 @@ type Router struct {
 }
 
 // NewRouter creates a new router with all routes configured
-func NewRouter(log logger.Logger, cfg *config.Config, userRepo repository.UserRepository, productRepo repository.ProductRepository) http.Handler {
+func NewRouter(log logger.Logger, cfg *config.Config, userRepo repository.UserRepository, productRepo repository.ServiceRepository) http.Handler {
 	router := &Router{
 		routes:     []Route{},
 		middleware: []func(http.Handler) http.Handler{},
@@ -37,7 +38,7 @@ func NewRouter(log logger.Logger, cfg *config.Config, userRepo repository.UserRe
 
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(log, userRepo)
-	ServiceHandler := handlers.NewServiceHandler(log, productRepo)
+	serviceHandler := handlers.NewServiceHandler(log, serviceRepo)
 
 	// Register routes
 	// User routes
@@ -48,13 +49,15 @@ func NewRouter(log logger.Logger, cfg *config.Config, userRepo repository.UserRe
 	router.AddRoute("PUT", "/api/v1/users/{id}", userHandler.UpdateUser)
 	router.AddRoute("DELETE", "/api/v1/users/{id}", userHandler.DeleteUser)
 
-	// Product routes
-	router.AddRoute("GET", "/api/v1/services", ServiceHandler.GetServices)
-	router.AddRoute("GET", "/api/v1/services/", ServiceHandler.GetServices) // Trailing slash version
-	router.AddRoute("GET", "/api/v1/services/{id}", ServiceHandler.GetProduct)
-	router.AddRoute("POST", "/api/v1/services", ServiceHandler.CreateProduct)
-	router.AddRoute("PUT", "/api/v1/services/{id}", ServiceHandler.UpdateProduct)
-	router.AddRoute("DELETE", "/api/v1/services/{id}", ServiceHandler.DeleteProduct)
+	// Service routes
+	router.AddRoute("GET", "/api/v1/services", serviceHandler.GetServices)
+	router.AddRoute("GET", "/api/v1/services/", serviceHandler.GetServices) // Trailing slash version
+	router.AddRoute("GET", "/api/v1/services/{id}", serviceHandler.GetService)
+	router.AddRoute("POST", "/api/v1/services", serviceHandler.CreateService)
+	router.AddRoute("PUT", "/api/v1/services/{id}", serviceHandler.UpdateService)
+	router.AddRoute("DELETE", "/api/v1/services/{id}", serviceHandler.DeleteService)
+
+	// Request routes
 
 	return router
 }

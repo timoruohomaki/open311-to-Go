@@ -16,7 +16,7 @@ type Service struct {
 }
 
 // Services is a collection of Service for XML marshaling
-type services struct {
+type Services struct {
 	XMLName xml.Name  `xml:"services"`
 	Items   []Service `xml:"service"`
 }
