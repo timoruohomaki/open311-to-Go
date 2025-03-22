@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/timoruohomaki/open311-to-Go/api"
 	"github.com/timoruohomaki/open311-to-Go/domain/models"
 	"github.com/timoruohomaki/open311-to-Go/domain/repository"
 	"github.com/timoruohomaki/open311-to-Go/pkg/logger"
+	"github.com/timoruohomaki/open311-to-Go/pkg/router"
 )
 
 // ServiceHandler handles product-related requests
@@ -45,7 +45,7 @@ func (h *ServiceHandler) GetServices(w http.ResponseWriter, r *http.Request) {
 
 // GetProduct returns a specific product
 func (h *ServiceHandler) GetProduct(w http.ResponseWriter, r *http.Request) {
-	id := api.GetPathParam(r, "id")
+	id := router.GetPathParam(r, "id")
 	if id == "" {
 		h.SendError(w, r, http.StatusBadRequest, "Invalid product ID")
 		return
@@ -97,7 +97,7 @@ func (h *ServiceHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 
 // UpdateProduct updates an existing product
 func (h *ServiceHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
-	id := api.GetPathParam(r, "id")
+	id := router.GetPathParam(r, "id")
 	if id == "" {
 		h.SendError(w, r, http.StatusBadRequest, "Invalid product ID")
 		return
@@ -132,7 +132,7 @@ func (h *ServiceHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 
 // DeleteService deletes a service
 func (h *ServiceHandler) DeleteService(w http.ResponseWriter, r *http.Request) {
-	id := api.GetPathParam(r, "id")
+	id := router.GetPathParam(r, "id")
 	if id == "" {
 		h.SendError(w, r, http.StatusBadRequest, "Invalid service ID")
 		return

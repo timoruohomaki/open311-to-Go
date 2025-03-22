@@ -5,9 +5,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/timoruohomaki/open311-to-Go/api"
 	"github.com/timoruohomaki/open311-to-Go/domain/models"
+	"github.com/timoruohomaki/open311-to-Go/domain/repository"
 	"github.com/timoruohomaki/open311-to-Go/pkg/logger"
+	"github.com/timoruohomaki/open311-to-Go/pkg/router" // Import the router package instead
 )
 
 // UserHandler handles user-related requests
@@ -44,7 +45,7 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 
 // GetUser returns a specific user
 func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
-	id := api.GetPathParam(r, "id")
+	id := router.GetPathParam(r, "id")
 	if id == "" {
 		h.SendError(w, r, http.StatusBadRequest, "Invalid user ID")
 		return
@@ -98,7 +99,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 // UpdateUser updates an existing user
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	id := api.GetPathParam(r, "id")
+	id := router.GetPathParam(r, "id")
 	if id == "" {
 		h.SendError(w, r, http.StatusBadRequest, "Invalid user ID")
 		return
@@ -133,7 +134,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 // DeleteUser deletes a user
 func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
-	id := api.GetPathParam(r, "id")
+	id := router.GetPathParam(r, "id")
 	if id == "" {
 		h.SendError(w, r, http.StatusBadRequest, "Invalid user ID")
 		return

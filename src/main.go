@@ -10,10 +10,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/timoruohomaki/open311-to-Go/api"
 	"github.com/timoruohomaki/open311-to-Go/config"
-
 	"github.com/timoruohomaki/open311-to-Go/domain/repository"
+	"github.com/timoruohomaki/open311-to-Go/pkg/app"
 	"github.com/timoruohomaki/open311-to-Go/pkg/logger"
 )
 
@@ -48,15 +47,14 @@ func main() {
 	// Initialize repositories
 	userRepo := repository.NewMongoUserRepository(db)
 	serviceRepo := repository.NewMongoServiceRepository(db)
-	// requestRepo := repository.NewMongoRequestRepository(db)
 
-	// Initialize router
-	router := api.NewRouter(log, cfg, userRepo, serviceRepo)
+	// Initialize application
+	application := app.New(cfg, log, userRepo, serviceRepo)
 
 	// Create server
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
-		Handler:      router,
+		Handler:      application.Handler(),
 		ReadTimeout:  time.Duration(cfg.Server.ReadTimeoutSeconds) * time.Second,
 		WriteTimeout: time.Duration(cfg.Server.WriteTimeoutSeconds) * time.Second,
 		IdleTimeout:  time.Duration(cfg.Server.IdleTimeoutSeconds) * time.Second,
@@ -66,7 +64,7 @@ func main() {
 	go func() {
 		log.Infof("Starting server on port %d", cfg.Server.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start API listener: %v", err)
+			log.Fatalf("Failed to start server: %v", err)
 		}
 	}()
 
@@ -75,14 +73,14 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Info("Shutting down API listener...")
+	log.Info("Shutting down server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Server.ShutdownTimeoutSeconds)*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("API listener forced to shutdown: %v", err)
+		log.Fatalf("Server forced to shutdown: %v", err)
 	}
 
-	log.Info("API listener exited properly")
+	log.Info("Server exited properly")
 }
