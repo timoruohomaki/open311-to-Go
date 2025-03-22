@@ -135,12 +135,11 @@ func (r *MongoServiceRepository) Update(ctx context.Context, service models.Serv
 	// Update service
 	update := bson.M{
 		"$set": bson.M{
-			"name":        service.Name,
+			"name":        service.ServiceName,
 			"description": service.Description,
 			"metadata":    service.Metadata,
 			"keywords":    service.Keywords,
 			"group":       service.Group,
-			"status":      service.Status,
 			"updatedAt":   service.UpdatedAt,
 		},
 	}

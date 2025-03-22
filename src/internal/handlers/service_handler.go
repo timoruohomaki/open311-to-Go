@@ -79,7 +79,7 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Basic validation
-	if service.Name == "" || service.Description == "" {
+	if service.ServiceName == "" || service.Description == "" {
 		h.SendError(w, r, http.StatusBadRequest, "Name and description are required")
 		return
 	}
