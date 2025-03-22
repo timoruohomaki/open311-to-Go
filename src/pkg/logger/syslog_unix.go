@@ -1,7 +1,3 @@
-// pkg/logger/syslog_unix.go
-//go:build !windows
-// +build !windows
-
 package logger
 
 import (
@@ -63,10 +59,9 @@ func addSyslogHook(logger *logrus.Logger, cfg Config, hooks *[]io.Closer) error 
 	}
 	logger.AddHook(hook)
 
-	// Add hook to the closer list if it implements io.Closer
-	if closer, ok := hook.(io.Closer); ok {
-		*hooks = append(*hooks, closer)
-	}
+	// Note: The SyslogHook from logrus doesn't implement io.Closer
+	// So we don't need to add it to hooks slice
+	// This was causing the type assertion error
 
 	return nil
 }
