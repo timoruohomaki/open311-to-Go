@@ -2,7 +2,7 @@
 
 ### Project structure:
 
-├── src/
-|  ├──  main.go
-|  ├──  go.mod
-|  ├──  go.sum
+├── src 
+|  ├──  main.go 
+|  ├──  go.mod 
+|  ├──  go.sum 
