@@ -34,7 +34,7 @@ Due to the experimental nature of this implementation, the schema for service re
 ## Implementation Status (initial implementation)
 
 * [ ]  Github action for Ubuntu ci/cd pipeline
-* [ ]  Apache Combined Log Format on access logs
+* [ ]  Logging (Syslog)
 * [ ]  Service Discovery (Serf)
 * [ ]  Observability (Sentry)
 * [ ]  MongoDB database backend
@@ -49,7 +49,7 @@ Due to the experimental nature of this implementation, the schema for service re
 
 ## What is the motivation for this?
 
-This work is to support my master's thesis work on large scale asset management on urban digital twins. This should be up and running by the end of 2024-ish.
+This work is to support my master's thesis work on large scale asset management on urban digital twins. This should be up and running by the end of 2025-ish.
 
 ## Credits
 
