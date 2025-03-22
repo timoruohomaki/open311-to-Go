@@ -2,6 +2,6 @@
 
 ### Project structure:
 
-* .
-* src
-        * main.go 
+1. root
+2. src
+   - main.go 
