@@ -38,11 +38,11 @@ Due to the experimental nature of this implementation, the schema for service re
 
 ## Implementation Status (initial implementation)
 
-* [*]  Github action for Ubuntu ci/cd pipeline
-* [*]  Logging (Syslog)
+* [x]  Github action for Ubuntu ci/cd pipeline
+* [x]  Logging (Syslog)
 * [ ]  Service Discovery (Serf)
 * [ ]  Observability (Sentry)
-* [*]  MongoDB database backend
+* [x]  MongoDB database backend
 * [ ]  Security (TLS, authentication, authorization)
 * [ ]  Schema validation on XML messages
 * [ ]  GET Service List (xml and json)
