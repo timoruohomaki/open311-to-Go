@@ -1,4 +1,3 @@
-// pkg/logger/logger.go
 package logger
 
 import (
@@ -35,6 +34,7 @@ type logrusLogger struct {
 type Config struct {
 	Level          string `json:"level"`
 	Format         string `json:"format"`
+	ApacheLogPath  string `json:"apacheLogPath"`
 	ToSyslog       bool   `json:"toSyslog"`
 	SyslogFacility string `json:"syslogFacility"`
 	SyslogHost     string `json:"syslogHost"`

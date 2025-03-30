@@ -17,6 +17,7 @@ type Config struct {
 	Logger struct {
 		Level          string `json:"level"`
 		Format         string `json:"format"`
+		ApacheLogPath  string `json:"apacheLogPath"`
 		ToSyslog       bool   `json:"toSyslog"`
 		SyslogFacility string `json:"syslogFacility"`
 		SyslogHost     string `json:"syslogHost"`

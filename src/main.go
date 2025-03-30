@@ -23,25 +23,40 @@ func main() {
 
 	// Load configuration
 	cfg, err := config.Load(*configPath)
+
 	if err != nil {
 		fmt.Printf("Failed to load configuration: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Initialize logger
+	// Initialize loggers
 	log, err := logger.New(cfg.Logger)
 	if err != nil {
 		fmt.Printf("Failed to initialize logger: %v\n", err)
 		os.Exit(1)
 	}
+
 	defer log.Close()
+
+	// Initialize second logger for access log in Apache format
+	apachelog, err := logger.New(cfg.Logger)
+	if err != nil {
+		fmt.Printf("Failed to initialize Apache logger: %v\n", err)
+		os.Exit(1)
+	}
+
+	defer apachelog.Close()
 
 	// Initialize MongoDB connection
 	db, err := repository.NewMongoDBConnection(cfg.MongoDB)
+
 	if err != nil {
 		log.Fatalf("Failed to connect to MongoDB: %v", err)
 		os.Exit(1)
 	}
+
+	log.Infof("Connected MongoDB database %s", cfg.MongoDB.Database)
+
 	defer db.Disconnect()
 
 	// Initialize API

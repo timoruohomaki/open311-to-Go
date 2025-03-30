@@ -20,6 +20,7 @@ func LoggingMiddleware(log logger.Logger) func(http.Handler) http.Handler {
 			next.ServeHTTP(rw, r)
 
 			// Log request details
+			// TODO: Apache common log format?
 			log.Infof("%s %s %s %d %s %s",
 				r.Method,
 				r.RequestURI,

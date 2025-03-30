@@ -46,6 +46,7 @@ func NewMongoDBConnection(cfg struct {
 
 	// Connect to MongoDB
 	if err := db.connect(); err != nil {
+
 		return nil, err
 	}
 
