@@ -7,6 +7,11 @@ Open311 is a form of technology that provides open channels of communication for
 
 Unlike the synchronous one-to-one communication of a 311 call center, Open311 technologies use the internet to enable these interactions to be asynchronous and many-to-many. This means that several different people can openly exchange information centered around a single public issue. This open model allows people to provide more actionable information for those who need it most and it encourages the public to be engaged with civic issues because they know their voices are being heard. Yet Open311 isn’t just about this more open internet-enabled model for 311 services, it’s also about making sure the technology itself is open so that 311 services and applications are interoperable and can be used everywhere.
 
+The key features of Opn311 can be summarized followingly:
+*  **Open Data Format:** Open311 provides a standardized data format for issues to be reported and tracked. This makes it easy for different systems to communicate with one another.
+*  **APIs:** Open311 offers Application Programming Interfaces (APIs) for developers, allowing third-party applications to integrate with government services. For example, a smartphone app can be created to enable users to report problems directly from their phones.
+*  **Transparency:** Open311 promotes transparency by allowing local governments to share the status and progress of reported issues with the public, making it easier for citizens to see how their concerns are being addressed.
+
 Source: https://www.open311.org/learn/
 
 ## Why Go?
@@ -33,11 +38,11 @@ Due to the experimental nature of this implementation, the schema for service re
 
 ## Implementation Status (initial implementation)
 
-* [ ]  Github action for Ubuntu ci/cd pipeline
-* [ ]  Logging (Syslog)
+* [x]  Github action for Ubuntu ci/cd pipeline
+* [x]  Logging (Syslog)
 * [ ]  Service Discovery (Serf)
 * [ ]  Observability (Sentry)
-* [ ]  MongoDB database backend
+* [x]  MongoDB database backend
 * [ ]  Security (TLS, authentication, authorization)
 * [ ]  Schema validation on XML messages
 * [ ]  GET Service List (xml and json)
