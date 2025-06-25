@@ -13,18 +13,19 @@ import (
 
 // API represents the REST API
 type API struct {
-	router *router.Router
-	config *config.Config
-	logger logger.Logger
+	router       *router.Router
+	config       *config.Config
+	logger       logger.Logger
+	accessLogger logger.Logger
 }
 
 // New creates a new API
-func New(cfg *config.Config, log logger.Logger, db *repository.MongoDB) *API {
+func New(cfg *config.Config, log logger.Logger, accessLog logger.Logger, db *repository.MongoDB) *API {
 	// Create router
 	r := router.New()
 
 	// Add middleware
-	r.Use(middleware.LoggingMiddleware(log))
+	r.Use(middleware.LoggingMiddleware(accessLog))
 	r.Use(middleware.ContentTypeMiddleware)
 
 	// Initialize repositories
@@ -36,9 +37,10 @@ func New(cfg *config.Config, log logger.Logger, db *repository.MongoDB) *API {
 	serviceHandler := handlers.NewServiceHandler(log, serviceRepo)
 
 	api := &API{
-		router: r,
-		config: cfg,
-		logger: log,
+		router:       r,
+		config:       cfg,
+		logger:       log,
+		accessLogger: accessLog,
 	}
 
 	// Register routes

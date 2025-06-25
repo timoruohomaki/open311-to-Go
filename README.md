@@ -5,7 +5,7 @@
 
 Open311 is a form of technology that provides open channels of communication for issues that concern public space and public services. Primarily, Open311 refers to a standardized protocol for location-based collaborative issue-tracking. By offering free web API access to an existing 311 service, Open311 is an evolution of the phone-based 311 systems that many cities in North America offer.
 
-Unlike the synchronous one-to-one communication of a 311 call center, Open311 technologies use the internet to enable these interactions to be asynchronous and many-to-many. This means that several different people can openly exchange information centered around a single public issue. This open model allows people to provide more actionable information for those who need it most and it encourages the public to be engaged with civic issues because they know their voices are being heard. Yet Open311 isn’t just about this more open internet-enabled model for 311 services, it’s also about making sure the technology itself is open so that 311 services and applications are interoperable and can be used everywhere.
+Unlike the synchronous one-to-one communication of a 311 call center, Open311 technologies use the internet to enable these interactions to be asynchronous and many-to-many. This means that several different people can openly exchange information centered around a single public issue. This open model allows people to provide more actionable information for those who need it most and it encourages the public to be engaged with civic issues because they know their voices are being heard. Yet Open311 isn't just about this more open internet-enabled model for 311 services, it's also about making sure the technology itself is open so that 311 services and applications are interoperable and can be used everywhere.
 
 The key features of Opn311 can be summarized followingly:
 *  **Open Data Format:** Open311 provides a standardized data format for issues to be reported and tracked. This makes it easy for different systems to communicate with one another.
@@ -45,7 +45,7 @@ Due to the experimental nature of this implementation, the schema for service re
 * [x]  MongoDB database backend
 * [ ]  Security (TLS, authentication, authorization)
 * [ ]  Schema validation on XML messages
-* [ ]  GET Service List (xml and json)
+* [ ]  GET Service List (xml and json)
 * [ ]  GET Service Definition (xml and json)
 * [ ]  POST Service Request (xml and json)
 * [ ]  GET Service Request Id (xml and json)
@@ -60,6 +60,52 @@ This work is to support my master's thesis work on large scale asset management 
 
 * This work heavily relies on the concept of distributed services Travis Jeffery provided in his book [Distributed Services with Go](https://a.co/d/g5mhjd8).
 * Credits also to Ishan Shrestha on RestAPI and MongoDB best practises, [blog here](https://medium.com/@ishan.shrestha356/scalable-json-restapi-using-go-lang-and-mongodb-cf9699c5f6e8)
+
+## Project Structure
+
+The project follows a modular Go structure:
+
+```
+open311-to-Go/
+  src/
+    config/         # Configuration files and loader
+    domain/         # Domain models (service, user, serviceRequest)
+    internal/
+      api/          # API setup and route registration
+      handlers/     # HTTP handlers for business logic
+      repository/   # MongoDB and repository interfaces
+    pkg/
+      app/          # Application entry point (optional)
+      httputil/     # HTTP utilities (params, response helpers)
+      logger/       # Logging framework (syslog, file, stdout)
+      middleware/   # HTTP middleware (logging, content-type)
+      router/       # Custom router implementation
+    main.go         # Main entry point
+    Makefile        # Build and test commands
+```
+
+## Tests
+
+The project includes unit tests for core logging functionality:
+
+- **Logging Middleware:**
+  - Ensures HTTP requests are logged in strict Apache Combined Log Format (suitable for analytics tools like Matomo).
+  - Verifies correct logging of status code, response size, referer, and user-agent.
+- **Syslog Logger:**
+  - Verifies that the logger can be created with syslog configuration enabled (UDP, remote syslog server).
+  - Ensures no errors occur when enabling syslog logging (even if no syslog server is running).
+
+To run the tests:
+
+```sh
+cd src
+# Run all tests
+go test ./...
+# Run only logging middleware tests
+go test ./pkg/middleware -v
+# Run only logger tests
+go test ./pkg/logger -v
+```
 
 
 

@@ -3,11 +3,11 @@ package app
 import (
 	"net/http"
 
-	"github.com/timoruohomaki/open311-to-Go/api/handlers"
-	"github.com/timoruohomaki/open311-to-Go/api/middleware"
 	"github.com/timoruohomaki/open311-to-Go/config"
-	"github.com/timoruohomaki/open311-to-Go/domain/repository"
+	"github.com/timoruohomaki/open311-to-Go/internal/handlers"
+	"github.com/timoruohomaki/open311-to-Go/internal/repository"
 	"github.com/timoruohomaki/open311-to-Go/pkg/logger"
+	"github.com/timoruohomaki/open311-to-Go/pkg/middleware"
 	"github.com/timoruohomaki/open311-to-Go/pkg/router"
 )
 
@@ -33,20 +33,17 @@ func New(cfg *config.Config, log logger.Logger, userRepo repository.UserReposito
 
 	// Register routes
 	// User routes
-	r.AddRoute("GET", "/api/v1/users", userHandler.GetUsers)
-	r.AddRoute("GET", "/api/v1/users/", userHandler.GetUsers) // Trailing slash version
-	r.AddRoute("GET", "/api/v1/users/{id}", userHandler.GetUser)
-	r.AddRoute("POST", "/api/v1/users", userHandler.CreateUser)
-	r.AddRoute("PUT", "/api/v1/users/{id}", userHandler.UpdateUser)
-	r.AddRoute("DELETE", "/api/v1/users/{id}", userHandler.DeleteUser)
+	r.Handle("GET", "/api/v1/users", userHandler.GetUsers)
+	r.Handle("GET", "/api/v1/users/", userHandler.GetUsers) // Trailing slash version
+	r.Handle("GET", "/api/v1/users/{id}", userHandler.GetUser)
 
-	// Service routes (previously Product)
-	r.AddRoute("GET", "/api/v1/services", serviceHandler.GetServices)
-	r.AddRoute("GET", "/api/v1/services/", serviceHandler.GetServices) // Trailing slash version
-	r.AddRoute("GET", "/api/v1/services/{id}", serviceHandler.GetService)
-	r.AddRoute("POST", "/api/v1/services", serviceHandler.CreateService)
-	r.AddRoute("PUT", "/api/v1/services/{id}", serviceHandler.UpdateService)
-	r.AddRoute("DELETE", "/api/v1/services/{id}", serviceHandler.DeleteService)
+	// Service routes
+	r.Handle("GET", "/api/v1/services", serviceHandler.GetServices)
+	r.Handle("GET", "/api/v1/services/", serviceHandler.GetServices) // Trailing slash version
+	r.Handle("GET", "/api/v1/services/{id}", serviceHandler.GetService)
+	r.Handle("POST", "/api/v1/services", serviceHandler.CreateService)
+	r.Handle("PUT", "/api/v1/services/{id}", serviceHandler.UpdateService)
+	r.Handle("DELETE", "/api/v1/services/{id}", serviceHandler.DeleteService)
 
 	return &App{
 		Router: r,

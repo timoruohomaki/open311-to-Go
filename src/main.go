@@ -60,7 +60,7 @@ func main() {
 	defer db.Disconnect()
 
 	// Initialize API
-	api := api.New(cfg, log, db)
+	api := api.New(cfg, log, apachelog, db)
 
 	// Create server
 	srv := &http.Server{
