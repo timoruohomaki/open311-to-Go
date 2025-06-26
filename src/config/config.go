@@ -30,6 +30,12 @@ type Config struct {
 		ConnectTimeout   int    `json:"connectTimeoutSeconds"`
 		OperationTimeout int    `json:"operationTimeoutSeconds"`
 	} `json:"mongodb"`
+	Sentry struct {
+		DSN              string  `json:"dsn"`
+		EnableTracing    bool    `json:"enableTracing"`
+		TracesSampleRate float64 `json:"tracesSampleRate"`
+		SendDefaultPII   bool    `json:"sendDefaultPII"`
+	} `json:"sentry"`
 }
 
 // Load loads the configuration from the specified file

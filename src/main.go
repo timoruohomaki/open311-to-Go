@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/getsentry/sentry-go"
+	sentryhttp "github.com/getsentry/sentry-go/http"
 	"github.com/timoruohomaki/open311-to-Go/config"
 	"github.com/timoruohomaki/open311-to-Go/internal/api"
 	"github.com/timoruohomaki/open311-to-Go/internal/repository"
@@ -59,13 +61,28 @@ func main() {
 
 	defer db.Disconnect()
 
+	// Initialize Sentry
+	err = sentry.Init(sentry.ClientOptions{
+		Dsn:              cfg.Sentry.DSN,
+		EnableTracing:    cfg.Sentry.EnableTracing,
+		TracesSampleRate: cfg.Sentry.TracesSampleRate,
+		SendDefaultPII:   cfg.Sentry.SendDefaultPII,
+	})
+	if err != nil {
+		log.Warnf("Sentry initialization failed: %v", err)
+	} else {
+		log.Info("Sentry initialized")
+	}
+
+	sentryHandler := sentryhttp.New(sentryhttp.Options{})
+
 	// Initialize API
 	api := api.New(cfg, log, apachelog, db)
 
 	// Create server
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
-		Handler:      api.Handler(),
+		Handler:      sentryHandler.Handle(api.Handler()),
 		ReadTimeout:  time.Duration(cfg.Server.ReadTimeoutSeconds) * time.Second,
 		WriteTimeout: time.Duration(cfg.Server.WriteTimeoutSeconds) * time.Second,
 		IdleTimeout:  time.Duration(cfg.Server.IdleTimeoutSeconds) * time.Second,

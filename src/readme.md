@@ -65,6 +65,24 @@ Represents a user in the system. Key fields:
 
 ---
 
+## Observability: Sentry Integration
+
+- Sentry is integrated for error and performance monitoring using the [Sentry Go net/http guide](https://docs.sentry.io/platforms/go/guides/http/).
+- Configuration is provided in `config/config.json` under the `sentry` section (DSN, tracing, etc.).
+- Sentry is initialized in `main.go` before the server starts. The API handler is wrapped with Sentry's HTTP middleware for automatic error and performance capture.
+- Example config:
+  ```json
+  "sentry": {
+    "dsn": "https://examplePublicKey@o0.ingest.sentry.io/0",
+    "enableTracing": true,
+    "tracesSampleRate": 1.0,
+    "sendDefaultPII": true
+  }
+  ```
+- **Note:** For production, move secrets like the Sentry DSN to a secure location (e.g., environment variables or a secrets manager).
+
+---
+
 ## Testing
 
 - Repository and handler logic are covered by tests:
