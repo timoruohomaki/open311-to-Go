@@ -34,7 +34,19 @@ Represents a service in the Open311 system. Key fields:
 ### User
 Represents a user in the system. Key fields:
 - `ID`, `Email`, `FirstName`, `LastName`
+- `Phone` (string, optional): User's phone number
+- `Organization` (string, optional): Organization name or identifier
+- `OrgType` (enum, optional): Type of organization/user (see below)
 - `CreatedAt`, `UpdatedAt` (time.Time)
+
+#### OrgType enumeration
+- `unknown`: Default/unspecified
+- `subcontractor`: Subcontractor identifying issues
+- `supervisor`: Internal supervisor monitoring progress/service levels
+- `internal`: Internal user
+- `external`: External user
+
+This allows distinguishing user roles and organizations for access control, reporting, and workflow logic.
 
 ---
 
