@@ -104,3 +104,42 @@ This allows distinguishing user roles and organizations for access control, repo
   - `internal/handlers/service_request_handler_test.go`
 - Tests cover searching by featureId, featureGuid, both, and neither.
 
+---
+
+## MongoDB Setup (using MongoDB Atlas)
+
+1. **Create a MongoDB Atlas Account:**
+   - Go to https://www.mongodb.com/cloud/atlas and sign up or log in.
+
+2. **Create a Cluster:**
+   - Click "Build a Database" and choose a free or paid cluster.
+   - Select your cloud provider and region, then create the cluster.
+
+3. **Create a Database User:**
+   - In the Atlas dashboard, go to "Database Access".
+   - Add a new database user with a username and password.
+   - Assign "Read and write to any database" or restrict as needed.
+
+4. **Configure Network Access:**
+   - In "Network Access", add your IP address or 0.0.0.0/0 (for development only) to the IP whitelist.
+
+5. **Get the Connection String:**
+   - In "Clusters", click "Connect" > "Connect your application".
+   - Copy the provided connection string (e.g., `mongodb+srv://<user>:<password>@cluster0.mongodb.net/<dbname>?retryWrites=true&w=majority`).
+   - Update `src/config/config.json` with your URI and database name.
+
+6. **Create Collections:**
+   - Collections are created automatically when you insert the first document.
+   - For this project, you will need at least:
+     - `service_requests`
+     - `users`
+     - `services`
+     - (optionally) `organizations`, `features_of_interest`, etc.
+
+7. **Test the Connection:**
+   - Run the application. If the connection is successful, you should see a log message indicating MongoDB is connected.
+
+**Note:**
+- Never commit your real MongoDB credentials to version control.
+- For production, restrict network and user access as much as possible.
+
