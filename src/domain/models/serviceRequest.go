@@ -26,6 +26,8 @@ type ServiceRequest struct {
 	Latitude          float64   `xml:"lat" json:"lat"`
 	Longitude         float64   `xml:"long" json:"long"`
 	MediaURL          string    `xml:"media_url" json:"media_url"`
+	FeatureID         *string   `json:"featureId,omitempty" xml:"feature_id,omitempty"`
+	FeatureGuid       *string   `json:"featureGuid,omitempty" xml:"feature_guid,omitempty"`
 }
 
 // Requests is a collection of Request items for XML marshaling

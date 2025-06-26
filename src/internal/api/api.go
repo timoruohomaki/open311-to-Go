@@ -31,10 +31,12 @@ func New(cfg *config.Config, log logger.Logger, accessLog logger.Logger, db *rep
 	// Initialize repositories
 	userRepo := repository.NewMongoUserRepository(db)
 	serviceRepo := repository.NewMongoServiceRepository(db)
+	serviceRequestRepo := repository.NewMongoServiceRequestRepository(db)
 
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(log, userRepo)
 	serviceHandler := handlers.NewServiceHandler(log, serviceRepo)
+	serviceRequestHandler := handlers.NewServiceRequestHandler(log, serviceRequestRepo)
 
 	api := &API{
 		router:       r,
@@ -44,13 +46,13 @@ func New(cfg *config.Config, log logger.Logger, accessLog logger.Logger, db *rep
 	}
 
 	// Register routes
-	api.registerRoutes(userHandler, serviceHandler)
+	api.registerRoutes(userHandler, serviceHandler, serviceRequestHandler)
 
 	return api
 }
 
 // registerRoutes sets up all API routes
-func (a *API) registerRoutes(userHandler *handlers.UserHandler, serviceHandler *handlers.ServiceHandler) {
+func (a *API) registerRoutes(userHandler *handlers.UserHandler, serviceHandler *handlers.ServiceHandler, serviceRequestHandler *handlers.ServiceRequestHandler) {
 	// User routes
 	a.router.Handle("GET", "/api/v1/users", userHandler.GetUsers)
 	a.router.Handle("GET", "/api/v1/users/", userHandler.GetUsers) // Trailing slash version
@@ -66,6 +68,9 @@ func (a *API) registerRoutes(userHandler *handlers.UserHandler, serviceHandler *
 	a.router.Handle("POST", "/api/v1/services", serviceHandler.CreateService)
 	a.router.Handle("PUT", "/api/v1/services/{id}", serviceHandler.UpdateService)
 	a.router.Handle("DELETE", "/api/v1/services/{id}", serviceHandler.DeleteService)
+
+	// Service Request routes
+	a.router.Handle("GET", "/api/v1/service_requests/search", serviceRequestHandler.SearchServiceRequestsByFeature)
 }
 
 // Handler returns the HTTP handler for the API
