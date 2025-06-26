@@ -40,7 +40,7 @@ Due to the experimental nature of this implementation, the schema for service re
 
 * [x]  Github action for Ubuntu ci/cd pipeline
 * [x]  Logging (Syslog)
-* [ ]  Observability (Sentry)
+* [x]  Observability (Sentry)
 * [x]  MongoDB database backend
 * [ ]  Security (TLS, authentication, authorization)
 * [ ]  Schema validation on XML messages
