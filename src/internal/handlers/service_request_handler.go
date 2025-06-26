@@ -32,3 +32,18 @@ func (h *ServiceRequestHandler) SearchServiceRequestsByFeature(w http.ResponseWr
 
 	h.SendResponse(w, r, http.StatusOK, results)
 }
+
+// SearchServiceRequestsByOrganization handles GET /api/v1/service_requests/by_organization?organizationId=...
+func (h *ServiceRequestHandler) SearchServiceRequestsByOrganization(w http.ResponseWriter, r *http.Request) {
+	organizationId := r.URL.Query().Get("organizationId")
+	if organizationId == "" {
+		h.SendError(w, r, http.StatusBadRequest, "Missing organizationId parameter")
+		return
+	}
+	results, err := h.repo.FindByOrganization(r.Context(), organizationId)
+	if err != nil {
+		h.SendError(w, r, http.StatusInternalServerError, "Failed to search service requests by organization")
+		return
+	}
+	h.SendResponse(w, r, http.StatusOK, results)
+}

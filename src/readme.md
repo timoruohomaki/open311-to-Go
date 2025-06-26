@@ -24,6 +24,7 @@ Represents a request in the system. Key fields:
 - `MediaURL` (string): Optional media attachment
 - `FeatureID` (string, optional): OGC API Features canonical URI for a geospatial feature
 - `FeatureGuid` (string, optional): Unique identifier for a geospatial feature within its collection
+- `OrganizationID` (string, optional): Reference to the organization related to the request
 
 ### Service
 Represents a service in the Open311 system. Key fields:
@@ -73,6 +74,7 @@ This allows distinguishing user roles and organizations for access control, repo
 ## API Endpoints
 
 - `GET /api/v1/service_requests/search?featureId=...&featureGuid=...` - Search service requests by geospatial feature
+- `GET /api/v1/service_requests/by_organization?organizationId=...` - Search service requests by organization
 - Other endpoints for users and services are also available (see `api.go`)
 
 ---

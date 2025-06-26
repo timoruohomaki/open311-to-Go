@@ -28,6 +28,7 @@ type ServiceRequest struct {
 	MediaURL          string    `xml:"media_url" json:"media_url"`
 	FeatureID         *string   `json:"featureId,omitempty" xml:"feature_id,omitempty"`
 	FeatureGuid       *string   `json:"featureGuid,omitempty" xml:"feature_guid,omitempty"`
+	OrganizationID    string    `json:"organizationId,omitempty" xml:"organization_id,omitempty"`
 }
 
 // Requests is a collection of Request items for XML marshaling

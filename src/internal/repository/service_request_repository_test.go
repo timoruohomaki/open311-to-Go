@@ -24,6 +24,16 @@ func (m *mockServiceRequestRepo) FindByFeature(ctx context.Context, featureID, f
 	return results, nil
 }
 
+func (m *mockServiceRequestRepo) FindByOrganization(ctx context.Context, organizationID string) ([]models.ServiceRequest, error) {
+	var results []models.ServiceRequest
+	for _, req := range m.data {
+		if req.OrganizationID == organizationID {
+			results = append(results, req)
+		}
+	}
+	return results, nil
+}
+
 func TestFindByFeature(t *testing.T) {
 	featureID := "https://example.com/ogcapi/collections/parks/items/park-42"
 	featureGuid := "park-42"
@@ -63,5 +73,32 @@ func TestFindByFeature(t *testing.T) {
 		results, err := repo.FindByFeature(context.Background(), "", "")
 		assert.NoError(t, err)
 		assert.Len(t, results, 2)
+	})
+}
+
+func TestFindByOrganization(t *testing.T) {
+	org1 := "org-1"
+	org2 := "org-2"
+	repo := &mockServiceRequestRepo{
+		data: []models.ServiceRequest{
+			{ID: "1", OrganizationID: org1},
+			{ID: "2", OrganizationID: org2},
+			{ID: "3", OrganizationID: org1},
+		},
+	}
+	t.Run("find by org1", func(t *testing.T) {
+		results, err := repo.FindByOrganization(context.Background(), org1)
+		assert.NoError(t, err)
+		assert.Len(t, results, 2)
+	})
+	t.Run("find by org2", func(t *testing.T) {
+		results, err := repo.FindByOrganization(context.Background(), org2)
+		assert.NoError(t, err)
+		assert.Len(t, results, 1)
+	})
+	t.Run("find by unknown org", func(t *testing.T) {
+		results, err := repo.FindByOrganization(context.Background(), "org-x")
+		assert.NoError(t, err)
+		assert.Len(t, results, 0)
 	})
 }

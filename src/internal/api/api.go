@@ -71,6 +71,7 @@ func (a *API) registerRoutes(userHandler *handlers.UserHandler, serviceHandler *
 
 	// Service Request routes
 	a.router.Handle("GET", "/api/v1/service_requests/search", serviceRequestHandler.SearchServiceRequestsByFeature)
+	a.router.Handle("GET", "/api/v1/service_requests/by_organization", serviceRequestHandler.SearchServiceRequestsByOrganization)
 }
 
 // Handler returns the HTTP handler for the API
