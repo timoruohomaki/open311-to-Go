@@ -264,6 +264,38 @@ records or mis-imported rows from a bulk feed, keyed on `service_request_id`.
 
 ---
 
+## 4c. POST Service Requests (bulk upsert) — project extension
+
+`POST /requests/bulk` — requires API key.
+
+Not part of GeoReport v2. For **high-throughput re-runnable feeds** (backfilling a
+full Boston 311 dump): upserts many records in a single MongoDB `BulkWrite`
+(unordered), collapsing per-record round-trips. Same upsert semantics as
+`PUT /requests/{id}` (keyed on `service_request_id`, preserves a supplied
+`updated_datetime`).
+
+> **Semantics:**
+> - **Body:** a JSON **array** of service requests, or an XML `<requests>`
+>   document. Max **1000** records per call — chunk larger inputs.
+> - **Per-record validation:** each needs `service_request_id`, `service_code`,
+>   and a location (`lat`+`long`, `address`, or `address_id`). Invalid records are
+>   rejected individually and reported; they do **not** abort the batch.
+> - **In-batch de-duplication:** records sharing a `service_request_id` within one
+>   call are collapsed (last wins) so they don't collide on the unique index.
+> - **Status code:** `200 OK` with a summary; `400` only when the whole payload is
+>   malformed, empty, or over the cap.
+
+**Response:**
+```json
+{ "requested": 500, "created": 480, "updated": 18, "failed": 2,
+  "errors": [ { "index": 7, "service_request_id": "", "message": "service_request_id is required" } ] }
+```
+
+> Throughput: against the live cluster, batched bulk upserts ingest the full
+> ~134k-row export in minutes, versus ~7.8 h for sequential single PUTs.
+
+---
+
 ## 5. GET Service Requests
 
 **Single:** `GET /requests/{service_request_id}.{format}`
@@ -521,7 +553,7 @@ feedback is the same append-only shape, but lives in its own
 | Service list | `GET /services` | ✅ implemented |
 | Service definition | `GET /services/{code}` | ⚠️ uses `{id}` (Mongo `_id`), not `service_code` |
 | Service CRUD | not in Open311 (admin only) | `POST/PUT/DELETE /services` exist |
-| Service requests | `GET /requests`, `GET /requests/{id}`, `POST /requests` | ✅ implemented (+ `PUT /requests/{id}` idempotent upsert, `DELETE /requests/{id}` admin cleanup, `/requests/search` & `/requests/by_organization` extensions) |
+| Service requests | `GET /requests`, `GET /requests/{id}`, `POST /requests` | ✅ implemented (+ `PUT /requests/{id}` idempotent upsert, `POST /requests/bulk` bulk upsert, `DELETE /requests/{id}` admin cleanup, `/requests/search` & `/requests/by_organization` extensions) |
 | Tokens | `GET /tokens/{id}` | ⏭️ not implemented — ids assigned synchronously |
 | Users | not part of Open311 | `GET /users`, `GET /users/{id}`; CRUD commented out |
 | Auth | `X-API-Key` + allowlist | ✅ `X-API-Key` on writes |
@@ -542,6 +574,7 @@ feedback is the same append-only shape, but lives in its own
 - [x] Canonical request endpoints `GET /requests`, `GET /requests/{id}`, `POST /requests` (tokens skipped — synchronous ids)
 - [x] Idempotent `PUT /requests/{id}` upsert (re-runnable bulk feeds; preserves supplied `updated_datetime`)
 - [x] `DELETE /requests/{id}` (admin cleanup of test / mis-imported records)
+- [x] `POST /requests/bulk` (BulkWrite upsert for high-throughput backfills; feeder in [scripts/feed-boston.ps1](scripts/feed-boston.ps1))
 - [x] Migrate route prefix `/api/v1` → `/open311/v2`
 - [ ] Service definition lookup by `service_code` (currently by Mongo `_id`)
 - [x] `X-API-Key` auth on writes (`API_KEYS` allowlist) + public `GET /health` (DB ping)

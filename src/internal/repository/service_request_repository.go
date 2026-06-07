@@ -39,6 +39,7 @@ type ServiceRequestRepository interface {
 	FindByServiceRequestID(ctx context.Context, serviceRequestID string) (models.ServiceRequest, error)
 	Create(ctx context.Context, req models.ServiceRequest) (models.ServiceRequest, error)
 	Upsert(ctx context.Context, req models.ServiceRequest) (models.ServiceRequest, bool, error)
+	BulkUpsert(ctx context.Context, reqs []models.ServiceRequest) (BulkUpsertResult, error)
 	Delete(ctx context.Context, serviceRequestID string) error
 	FindByFeature(ctx context.Context, featureID, featureGuid string) ([]models.ServiceRequest, error)
 	FindByOrganization(ctx context.Context, organizationID string) ([]models.ServiceRequest, error)
@@ -320,6 +321,106 @@ func (r *MongoServiceRequestRepository) Upsert(ctx context.Context, req models.S
 		return models.ServiceRequest{}, false, err
 	}
 	return stored, created, nil
+}
+
+// BulkUpsertError reports a single record that failed within a bulk upsert.
+type BulkUpsertError struct {
+	Index            int    `json:"index"`
+	ServiceRequestID string `json:"service_request_id"`
+	Message          string `json:"message"`
+}
+
+// BulkUpsertResult summarizes a bulk upsert. Created/Updated are exact when the
+// whole batch succeeds; if the driver returns write errors they are listed in
+// Errors and Created/Updated reflect only the counts the driver reported.
+type BulkUpsertResult struct {
+	Requested int
+	Created   int
+	Updated   int
+	Failed    int
+	Errors    []BulkUpsertError
+}
+
+// BulkUpsert inserts-or-replaces many service requests in a single MongoDB
+// BulkWrite (unordered, so one bad record doesn't abort the rest), keyed on
+// service_request_id. Same per-record defaults as Upsert: status→open and
+// requested_datetime→now when absent, and a supplied updated_datetime is
+// preserved (defaulting to now only when absent). Records sharing a
+// service_request_id within the batch are de-duplicated (last wins) so they
+// don't collide against the unique index. Records with an empty
+// service_request_id are skipped and reported as errors.
+func (r *MongoServiceRequestRepository) BulkUpsert(ctx context.Context, reqs []models.ServiceRequest) (BulkUpsertResult, error) {
+	res := BulkUpsertResult{Requested: len(reqs)}
+	if len(reqs) == 0 {
+		return res, nil
+	}
+
+	now := time.Now().UTC()
+
+	// De-duplicate by service_request_id (last wins), preserving first-seen order.
+	order := make([]string, 0, len(reqs))
+	byID := make(map[string]models.ServiceRequest, len(reqs))
+	for i, req := range reqs {
+		if req.ServiceRequestID == "" {
+			res.Failed++
+			res.Errors = append(res.Errors, BulkUpsertError{Index: i, Message: "service_request_id is required"})
+			continue
+		}
+		if _, seen := byID[req.ServiceRequestID]; !seen {
+			order = append(order, req.ServiceRequestID)
+		}
+		byID[req.ServiceRequestID] = req
+	}
+
+	models_ := make([]mongo.WriteModel, 0, len(order))
+	for _, id := range order {
+		req := byID[id]
+		if req.Status == "" {
+			req.Status = "open"
+		}
+		if req.RequestedDatetime.IsZero() {
+			req.RequestedDatetime = now
+		}
+		if req.UpdatedDatetime.IsZero() {
+			req.UpdatedDatetime = now
+		}
+		doc := serviceRequestDocFromModel(req)
+		doc.ID = primitive.ObjectID{} // let Mongo own _id (preserve on replace, generate on insert)
+		m := mongo.NewReplaceOneModel().
+			SetFilter(bson.M{"service_request_id": req.ServiceRequestID}).
+			SetReplacement(doc).
+			SetUpsert(true)
+		models_ = append(models_, m)
+	}
+
+	if len(models_) == 0 {
+		return res, nil
+	}
+
+	bw, err := r.collection.BulkWrite(ctx, models_, options.BulkWrite().SetOrdered(false))
+	if err != nil {
+		var bwe mongo.BulkWriteException
+		if errors.As(err, &bwe) {
+			for _, we := range bwe.WriteErrors {
+				srid := ""
+				if we.Index >= 0 && we.Index < len(order) {
+					srid = order[we.Index]
+				}
+				res.Errors = append(res.Errors, BulkUpsertError{Index: we.Index, ServiceRequestID: srid, Message: we.Message})
+			}
+			res.Failed += len(bwe.WriteErrors)
+			// The driver does not expose partial counts on a bulk exception; the
+			// records not in WriteErrors did succeed. Surface that as a single
+			// "Updated" tally so callers see succeeded vs failed.
+			res.Updated += len(models_) - len(bwe.WriteErrors)
+			return res, nil
+		}
+		return res, fmt.Errorf("%w: %v", ErrDatabase, err)
+	}
+
+	res.Created += int(bw.UpsertedCount)
+	res.Updated += int(bw.MatchedCount)
+	return res, nil
 }
 
 // Delete removes the service request identified by serviceRequestID (the natural

@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"net/http"
 	"strconv"
@@ -12,6 +14,10 @@ import (
 	"github.com/timoruohomaki/open311-to-Go/pkg/httputil"
 	"github.com/timoruohomaki/open311-to-Go/pkg/logger"
 )
+
+// maxBulkRequests caps how many service requests one bulk call may carry, to
+// bound request size and memory. Feeders should chunk larger inputs.
+const maxBulkRequests = 1000
 
 type ServiceRequestHandler struct {
 	BaseHandler
@@ -205,6 +211,98 @@ func (h *ServiceRequestHandler) DeleteServiceRequest(w http.ResponseWriter, r *h
 	}
 
 	h.SendResponse(w, r, http.StatusOK, MessageResponse{Message: "Service request deleted successfully"})
+}
+
+// BulkItemError reports one record rejected during a bulk upsert (either by
+// pre-validation or by the database).
+type BulkItemError struct {
+	Index            int    `json:"index" xml:"index"`
+	ServiceRequestID string `json:"service_request_id" xml:"service_request_id"`
+	Message          string `json:"message" xml:"message"`
+}
+
+// BulkUpsertResponse summarizes a bulk upsert. A struct (not a map) so it
+// marshals to both JSON and XML.
+type BulkUpsertResponse struct {
+	XMLName   xml.Name        `json:"-" xml:"bulk_result"`
+	Requested int             `json:"requested" xml:"requested"`
+	Created   int             `json:"created" xml:"created"`
+	Updated   int             `json:"updated" xml:"updated"`
+	Failed    int             `json:"failed" xml:"failed"`
+	Errors    []BulkItemError `json:"errors,omitempty" xml:"errors>error,omitempty"`
+}
+
+// BulkUpsertServiceRequests handles POST /open311/v2/requests/bulk — a project
+// extension for re-runnable bulk feeds. Accepts a JSON array of service requests
+// (or an XML <requests> document) and upserts them in a single MongoDB
+// BulkWrite, keyed on service_request_id. Each record requires service_request_id,
+// service_code, and a location (lat+long, address, or address_id); invalid
+// records are rejected and reported without aborting the batch. Like PUT, a
+// supplied updated_datetime is preserved. Returns 200 with a per-batch summary;
+// 400 only when the whole payload is malformed, empty, or exceeds the cap.
+func (h *ServiceRequestHandler) BulkUpsertServiceRequests(w http.ResponseWriter, r *http.Request) {
+	var incoming []models.ServiceRequest
+
+	if strings.Contains(r.Header.Get("Content-Type"), "xml") {
+		var wrapper models.ServiceRequests
+		if err := xml.NewDecoder(r.Body).Decode(&wrapper); err != nil {
+			h.SendError(w, r, http.StatusBadRequest, "Invalid request payload")
+			return
+		}
+		incoming = wrapper.Items
+	} else {
+		if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
+			h.SendError(w, r, http.StatusBadRequest, "Invalid request payload (expected a JSON array of service requests)")
+			return
+		}
+	}
+
+	if len(incoming) == 0 {
+		h.SendError(w, r, http.StatusBadRequest, "no service requests provided")
+		return
+	}
+	if len(incoming) > maxBulkRequests {
+		h.SendError(w, r, http.StatusBadRequest, "batch too large: at most "+strconv.Itoa(maxBulkRequests)+" requests per call")
+		return
+	}
+
+	// Pre-validate; keep valid records, collect rejects (indexes preserved).
+	valid := make([]models.ServiceRequest, 0, len(incoming))
+	var rejects []BulkItemError
+	for i, req := range incoming {
+		switch {
+		case req.ServiceRequestID == "":
+			rejects = append(rejects, BulkItemError{Index: i, Message: "service_request_id is required"})
+		case req.ServiceCode == "":
+			rejects = append(rejects, BulkItemError{Index: i, ServiceRequestID: req.ServiceRequestID, Message: "service_code is required"})
+		case req.Latitude == 0 && req.Longitude == 0 && req.Address == "" && req.AddressID == "":
+			rejects = append(rejects, BulkItemError{Index: i, ServiceRequestID: req.ServiceRequestID, Message: "a location is required: provide lat and long, address, or address_id"})
+		default:
+			valid = append(valid, req)
+		}
+	}
+
+	result, err := h.repo.BulkUpsert(r.Context(), valid)
+	if err != nil {
+		h.log.Errorf("Bulk upsert failed: %v", err)
+		h.SendError(w, r, http.StatusInternalServerError, "Failed to bulk upsert service requests")
+		return
+	}
+
+	resp := BulkUpsertResponse{
+		Requested: len(incoming),
+		Created:   result.Created,
+		Updated:   result.Updated,
+		Failed:    result.Failed + len(rejects),
+	}
+	for _, e := range rejects {
+		resp.Errors = append(resp.Errors, e)
+	}
+	for _, e := range result.Errors {
+		resp.Errors = append(resp.Errors, BulkItemError{Index: e.Index, ServiceRequestID: e.ServiceRequestID, Message: e.Message})
+	}
+
+	h.SendResponse(w, r, http.StatusOK, resp)
 }
 
 // SearchServiceRequestsByFeature handles GET /open311/v2/requests/search?featureId=...&featureGuid=...

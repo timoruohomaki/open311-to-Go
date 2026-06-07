@@ -67,6 +67,27 @@ func (m *mockServiceRequestRepo) Upsert(ctx context.Context, req models.ServiceR
 	return req, true, nil
 }
 
+func (m *mockServiceRequestRepo) BulkUpsert(ctx context.Context, reqs []models.ServiceRequest) (repository.BulkUpsertResult, error) {
+	res := repository.BulkUpsertResult{Requested: len(reqs)}
+	for _, req := range reqs {
+		found := false
+		for i, existing := range m.data {
+			if existing.ServiceRequestID == req.ServiceRequestID {
+				m.data[i] = req
+				found = true
+				break
+			}
+		}
+		if found {
+			res.Updated++
+		} else {
+			m.data = append(m.data, req)
+			res.Created++
+		}
+	}
+	return res, nil
+}
+
 func (m *mockServiceRequestRepo) Delete(ctx context.Context, serviceRequestID string) error {
 	for i, existing := range m.data {
 		if existing.ServiceRequestID == serviceRequestID {
@@ -299,6 +320,48 @@ func TestUpsertServiceRequest(t *testing.T) {
 
 	t.Run("missing location -> 400", func(t *testing.T) {
 		w := jsonPut(&mockServiceRequestRepo{}, "sr-1", `{"service_code":"POTHOLE"}`)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+}
+
+func TestBulkUpsertServiceRequests(t *testing.T) {
+	jsonPost := func(repo *mockServiceRequestRepo, body string) *httptest.ResponseRecorder {
+		handler := NewServiceRequestHandler(nil, repo)
+		r := httptest.NewRequest(http.MethodPost, "/open311/v2/requests/bulk", strings.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		handler.BulkUpsertServiceRequests(w, r)
+		return w
+	}
+
+	t.Run("mixed create + update + reject", func(t *testing.T) {
+		repo := &mockServiceRequestRepo{
+			data: []models.ServiceRequest{{ServiceRequestID: "sr-1", ServiceCode: "OLD", Status: "open"}},
+		}
+		body := `[
+			{"service_request_id":"sr-1","service_code":"POTHOLE","status":"closed","lat":42.36,"long":-71.05},
+			{"service_request_id":"sr-2","service_code":"POTHOLE","address":"1 City Hall Sq"},
+			{"service_request_id":"sr-3","lat":42.1,"long":-71.0},
+			{"service_code":"NOID","lat":42.1,"long":-71.0}
+		]`
+		w := jsonPost(repo, body)
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp BulkUpsertResponse
+		assert.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.Equal(t, 4, resp.Requested)
+		assert.Equal(t, 1, resp.Created) // sr-2
+		assert.Equal(t, 1, resp.Updated) // sr-1
+		assert.Equal(t, 2, resp.Failed)  // sr-3 (no service_code), no-id record
+		assert.Len(t, resp.Errors, 2)
+	})
+
+	t.Run("empty array -> 400", func(t *testing.T) {
+		w := jsonPost(&mockServiceRequestRepo{}, `[]`)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("malformed -> 400", func(t *testing.T) {
+		w := jsonPost(&mockServiceRequestRepo{}, `{not json}`)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 }

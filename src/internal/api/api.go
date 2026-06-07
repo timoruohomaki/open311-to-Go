@@ -93,6 +93,7 @@ func (a *API) registerRoutes(userHandler *handlers.UserHandler, serviceHandler *
 	a.router.Handle("GET", "/open311/v2/requests/by_organization", serviceRequestHandler.SearchServiceRequestsByOrganization)
 	a.router.Handle("GET", "/open311/v2/requests", serviceRequestHandler.GetServiceRequests)
 	a.router.Handle("GET", "/open311/v2/requests/", serviceRequestHandler.GetServiceRequests) // Trailing slash version
+	a.router.Handle("POST", "/open311/v2/requests/bulk", serviceRequestHandler.BulkUpsertServiceRequests)
 	a.router.Handle("POST", "/open311/v2/requests", serviceRequestHandler.CreateServiceRequest)
 	a.router.Handle("GET", "/open311/v2/requests/{id}", serviceRequestHandler.GetServiceRequest)
 	a.router.Handle("PUT", "/open311/v2/requests/{id}", serviceRequestHandler.UpsertServiceRequest)

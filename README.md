@@ -80,6 +80,7 @@ Open311 GeoReport v2 endpoints (served under `/open311/v2/` — see [developer-r
 * [ ]  GET Service Definition — `GET /open311/v2/services/{id}` _(by Mongo `_id`; `service_code` lookup pending)_
 * [x]  POST Service Request — `POST /open311/v2/requests`
 * [x]  PUT Service Request (idempotent upsert) — `PUT /open311/v2/requests/{id}` _(project extension; re-runnable bulk feeds)_
+* [x]  POST Service Requests (bulk upsert) — `POST /open311/v2/requests/bulk` _(project extension; high-throughput backfills)_
 * [x]  DELETE Service Request — `DELETE /open311/v2/requests/{id}` _(project extension; admin cleanup)_
 * [x]  GET Service Request by id — `GET /open311/v2/requests/{id}`
 * [x]  GET Service Requests (list) — `GET /open311/v2/requests`
