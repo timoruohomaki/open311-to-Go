@@ -1,0 +1,138 @@
+# Boston BOS:311 data dictionary -> open311-to-Go mapping
+#
+# This is an EXAMPLE external dictionary. A single-jurisdiction Open311
+# deployment does not need a central business glossary, but a per-jurisdiction
+# dictionary like this is a useful reference: it records how a city's native case
+# columns map onto this API's Open311 `service_request` model, and which native
+# columns are carried through the `properties` extension (no Open311 equivalent).
+#
+# It is documentation/reference only — the API does not load or enforce it. The
+# data-import pipeline (backend01) uses it to shape documents written to the
+# `open311-boston` collection.
+#
+# Sources: City of Boston "311 Service Requests Data Dictionary - New System"
+# and the legacy "value codes" reference.
+
+jurisdiction: boston
+source_system: "BOS:311 (new system, 2025+)"
+service_request_id_format: "BCS-00059336"   # Case ID
+
+# Native column -> Open311 service_request field (served directly).
+field_mappings:
+  Case ID:            service_request_id
+  Service Name:       service_name
+  Case Topic:         service_code          # see notes: Boston has no short code
+  Case Status:        status                # normalized; see value_sets.status
+  Closure Comments:   status_notes
+  Assigned Department: agency_responsible
+  Open Date:          requested_datetime
+  Close Date:         updated_datetime
+  Target Close Date:  expected_datetime
+  Full Street Address: address
+  Zip Code:           zipcode
+  Longitude (X):      long                  # WGS84; also drives GeoJSON location
+  Latitude (Y):       lat
+  Submitted Photo:    media_url
+
+# Native columns with no Open311 equivalent, carried in the `properties` object.
+# key = the property key written into service_request.properties.
+properties:
+  Assigned Team:         assigned_team
+  Closure Reason:        closure_reason      # see value_sets.closure_reason
+  On Time?:              on_time             # see value_sets.on_time
+  Report Source:         report_source
+  Closed Photo:          closed_photo
+  Street Number:         street_number
+  Street Name:           street_name
+  Neighborhood:          neighborhood
+  Public Works District: pwd_district
+  City Council District: city_council_district
+  Fire District:         fire_district
+  Police District:       police_district
+  Ward:                  ward
+  Precinct:              precinct
+
+# Enumerated value sets (for the importer / reference; not enforced by the API).
+value_sets:
+  status:                 # Open311 status is open|closed
+    "In progress": open
+    "Closed":      closed
+  closure_reason:         # new system
+    - Transitioned        # reassigned to another agency
+    - Noted               # no action required
+    - Resolved            # resolved
+    # legacy codes also seen: NOACC, TFA, PERMIS, NOBASE, CORR, ROA, VIOCOR,
+    # VIOISS, NOVIO, TICKET, "Duplicate of Existing Case", "Case Invalid"
+  on_time:
+    - ONTIME
+    - OVERDUE
+  report_source:
+    - Call                # other channels (web, mobile, etc.) appear in data
+  land_usage:             # legacy parcel land-use codes (reference)
+    R1: Residential 1 Family
+    R2: Residential 2 Family
+    R3: Residential 3 Family
+    R4: Residential 4-6 Units
+    A:  Residential 7 or more Units
+    RL: Residential Lot
+    CD: Condominium
+    CC: Commercial Condominium
+    CM: Condo Main
+    C:  Commercial
+    RC: Mixed Residential Commercial
+    CL: Commercial Land
+    CP: Condo Parking
+    I:  Industrial
+    E:  Exempt
+    EA: Exempt (Chapter 121A)
+  zip_codes:
+    - "02026"
+    - "02108"
+    - "02109"
+    - "02110"
+    - "02111"
+    - "02113"
+    - "02114"
+    - "02115"
+    - "02116"
+    - "02118"
+    - "02119"
+    - "02120"
+    - "02121"
+    - "02122"
+    - "02124"
+    - "02125"
+    - "02126"
+    - "02127"
+    - "02128"
+    - "02129"
+    - "02130"
+    - "02131"
+    - "02132"
+    - "02133"
+    - "02134"
+    - "02135"
+    - "02136"
+    - "02163"
+    - "02199"
+    - "02203"
+    - "02205"
+    - "02210"
+    - "02215"
+    - "02467"
+
+notes:
+  - >
+    Boston has no short numeric service_code. Cases are classified by Case Topic /
+    Service Name (new system) or a SUBJECT > REASON > TYPE hierarchy (legacy).
+    Aligning service_code with the spatial-datalake naming scheme is still open;
+    until then, map Service Name -> service_name and leave service_code to the
+    importer's chosen convention.
+  - >
+    Geographic classifications (districts, ward, precinct, neighborhood) are
+    carried as properties. The canonical spatial value is lat/long, which the API
+    stores as a GeoJSON `location` for the 2dsphere index.
+  - >
+    To be served correctly, the importer must place Open311 fields at the top
+    level of the document and all extension columns under a `properties` object
+    (string key/value pairs).

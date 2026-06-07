@@ -100,7 +100,7 @@ Cross-cutting (not started):
 * [ ]  TLS termination (handled at the proxy / backend01)
 * [x]  BSON tag / `_id` mapping fix (persistence-DTO pattern; see [developer-reference §8](developer-reference.md#8-data-model--mongodb-mapping))
 * [ ]  External media server (Helsinki) — _localization deferred; English only_
-* [ ]  Inline `properties` (PSK 5970) passthrough
+* [x]  Inline `properties` extension (Boston extras + PSK 5970); see [dictionaries/boston-311.yaml](dictionaries/boston-311.yaml)
 * [ ]  NPS (Net Promoter Score) API integration as satisfaction data source
 
 ## What is the motivation for this?

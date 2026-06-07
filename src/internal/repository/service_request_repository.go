@@ -67,6 +67,7 @@ type serviceRequestDoc struct {
 	FeatureID         *string            `bson:"featureId,omitempty"`
 	FeatureGuid       *string            `bson:"featureGuid,omitempty"`
 	OrganizationID    string             `bson:"organizationId,omitempty"`
+	Properties        map[string]string  `bson:"properties,omitempty"`
 	// Location is a GeoJSON Point [long, lat] derived from lat/long, indexed
 	// with 2dsphere for spatial queries. Omitted when no coordinates are set.
 	Location *geoPoint `bson:"location,omitempty"`
@@ -105,6 +106,7 @@ func (d serviceRequestDoc) toModel() models.ServiceRequest {
 		FeatureID:         d.FeatureID,
 		FeatureGuid:       d.FeatureGuid,
 		OrganizationID:    d.OrganizationID,
+		Properties:        models.Properties(d.Properties),
 	}
 }
 
@@ -130,6 +132,7 @@ func serviceRequestDocFromModel(m models.ServiceRequest) serviceRequestDoc {
 		FeatureID:         m.FeatureID,
 		FeatureGuid:       m.FeatureGuid,
 		OrganizationID:    m.OrganizationID,
+		Properties:        map[string]string(m.Properties),
 	}
 	if m.ID != "" {
 		if oid, err := primitive.ObjectIDFromHex(m.ID); err == nil {
