@@ -317,8 +317,9 @@ Responses: `201` created, `400` invalid JSON, `422` validation failure.
 
 **Patterns worth adopting from nps-api during this overhaul:**
 - **Env-var config** (`MONGODB_URI`, `MONGODB_DATABASE`, `PORT`, `SENTRY_DSN`,
-  `SENTRY_ENVIRONMENT`, `API_KEYS`, `ALLOWED_PLATFORMS`) instead of a plaintext
-  `config.json` with embedded secrets.
+  `SENTRY_ENVIRONMENT`, …) instead of a plaintext `config.json` with embedded
+  secrets. **Adopted** — see [.env.example](src/.env.example). (`API_KEYS` /
+  `ALLOWED_PLATFORMS` arrive with the auth step.)
 - **`X-API-Key` + `API_KEYS` allowlist** auth. **Decided:** this project
   standardizes on `X-API-Key` (consistent with nps-api); `api_key` may be
   accepted additionally for Open311 client compatibility.
@@ -450,6 +451,6 @@ feedback is the same append-only shape, but lives in its own
 - [ ] `properties` (PSK 5970) passthrough + validation
 - [ ] Integrate the NPS (Net Promoter Score) API as a satisfaction data source ([nps-api](https://github.com/timoruohomaki/nps-api))
 - [x] MongoDB X.509 (`MONGODB-X509` / `$external`) cert auth wired in `connect()` (see [config.example.json](src/config/config.example.json))
-- [ ] Migrate config (URI, cert path, DSN) out of `config.json` to env vars
+- [x] Config migrated to env vars (12-factor; `.env` for local dev, see [.env.example](src/.env.example))
 - [ ] Resolve mongo-driver **v1 vs v2** (both currently pulled in)
 - [ ] Fix `Makefile` `build` target (`-o main.go` overwrites source)

@@ -1,5 +1,8 @@
 run:
-	@go run main.go -config="./config/config.json"
+	@go run main.go
 
 build:
-	@go build -o main.go
+	@go build -o bin/open311api .
+
+test:
+	@go test ./...

@@ -20,12 +20,17 @@ import (
 
 func main() {
 	// Parse command line flags
-	configPath := flag.String("config", "./config/config.json", "path to configuration file")
+	envPath := flag.String("env", ".env", "path to optional .env file (real env vars take precedence)")
 	flag.Parse()
 
-	// Load configuration
-	cfg, err := config.Load(*configPath)
+	// Load a local .env file if present (does not override real env vars)
+	if err := config.LoadDotEnv(*envPath); err != nil {
+		fmt.Printf("Failed to read env file %q: %v\n", *envPath, err)
+		os.Exit(1)
+	}
 
+	// Load configuration from environment
+	cfg, err := config.Load()
 	if err != nil {
 		fmt.Printf("Failed to load configuration: %v\n", err)
 		os.Exit(1)
@@ -64,6 +69,7 @@ func main() {
 	// Initialize Sentry
 	err = sentry.Init(sentry.ClientOptions{
 		Dsn:              cfg.Sentry.DSN,
+		Environment:      cfg.Sentry.Environment,
 		EnableTracing:    cfg.Sentry.EnableTracing,
 		TracesSampleRate: cfg.Sentry.TracesSampleRate,
 		SendDefaultPII:   cfg.Sentry.SendDefaultPII,

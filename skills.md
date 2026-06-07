@@ -12,7 +12,7 @@ with [developer-reference.md](developer-reference.md) (the API contract) and
 | Path | What |
 |---|---|
 | [`src/main.go`](src/main.go) | Entry point: config → loggers → Mongo → Sentry → HTTP server + graceful shutdown |
-| [`src/config/`](src/config/) | `config.go` loader + `config.json` (gitignored) |
+| [`src/config/`](src/config/) | `config.go` — env-var loader + `.env` support ([.env.example](src/.env.example)) |
 | [`src/domain/models/`](src/domain/models/) | `User`, `Service`, `ServiceRequest` + XML wrappers |
 | [`src/internal/api/`](src/internal/api/) | Route registration |
 | [`src/internal/handlers/`](src/internal/handlers/) | HTTP handlers (`*_handler.go`) |
@@ -31,9 +31,13 @@ All commands run from `src/`.
 ```sh
 cd src
 
-# Run the dev server (reads ./config/config.json)
-go run main.go -config="./config/config.json"
+# Configure: copy the example env file and fill it in (at minimum MONGODB_URI)
+cp .env.example .env   # .env is gitignored; real env vars override it
+
+# Run the dev server (loads ./.env if present)
+go run main.go
 # or: make run
+# Point at a different env file: go run main.go -env=/path/to/.env
 
 # Test
 go test ./...                      # everything
@@ -45,9 +49,10 @@ go vet ./...
 gofmt -l .
 ```
 
-> ⚠️ **Do not use `make build`.** The target is `go build -o main.go`, which
-> writes the compiled binary over the `main.go` **source file**. Use
-> `go build -o bin/open311api .` instead until the Makefile is fixed.
+`make build` outputs the binary to `bin/open311api` (gitignored). Configuration
+is **environment variables only** — there is no config file. See
+[.env.example](src/.env.example) for the full list; `config.Load()` applies
+defaults and requires only `MONGODB_URI`.
 
 ---
 
@@ -91,13 +96,12 @@ gofmt -l .
    `service_requests`. Normalize to lowercase during the overhaul.
 4. **Two Mongo drivers:** `go.mod` has v1 (`mongo-driver` v1.17.3, used directly)
    and v2 (`mongo-driver/v2`, indirect). Pick one before adding features.
-5. **Secrets:** `src/config/config.json` holds the Mongo URI with credentials.
-   It is gitignored (✅ never committed) but is plaintext — move to env/secret
-   store and use **X.509 cert auth** for hosted Mongo (project requirement).
-   `sentry.sendDefaultPII` is `true` — reconsider for GDPR.
-6. **Decode errors are swallowed** in the service-request repo cursor loops
-   (`continue` on `Decode` error). Log them.
-7. **`pkg/app/app.go` is dead code** — a second, unused API setup. Don't extend
+5. **Secrets:** config is env-var only (no config file); `MONGODB_URI` carries no
+   password (X.509 cert auth), and the cert PEM is referenced by path
+   (`MONGODB_TLS_CERT_KEY_FILE`), never committed. `.env` is gitignored.
+   `SENTRY_SEND_DEFAULT_PII` defaults to `false` (GDPR). The old
+   `src/config/config.json` is no longer read.
+6. **`pkg/app/app.go` is dead code** — a second, unused API setup. Don't extend
    it; `internal/api` is the live path.
 8. **Boston `service_code`s contain spaces and colons** — always URL-encode when
    building `/services/{service_code}` paths.
@@ -139,11 +143,8 @@ Hosted Mongo (Atlas) uses certificate auth. This is **implemented**:
 - [`repository.buildTLSConfig`](src/internal/repository/mongodb.go) loads them
   via `tls.LoadX509KeyPair(path, path)` (same path twice ⇒ cert+key in one file)
   and `connect()` applies them with `options.Client().SetTLSConfig(...)`.
-- See [config.example.json](src/config/config.example.json) for the full shape.
-  `config.json` is gitignored; the cert PEM lives outside the repo.
-
-> Pending: migrate config to env vars (nps-api pattern) so paths/DSNs aren't in
-> a file at all — tracked in the overhaul checklist.
+- Config comes from env vars: `MONGODB_TLS_CERT_KEY_FILE` and `MONGODB_TLS_CA_FILE`
+  (see [.env.example](src/.env.example)). The cert PEM lives outside the repo.
 
 ---
 

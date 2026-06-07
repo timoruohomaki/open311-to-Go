@@ -115,7 +115,7 @@ The project follows a modular Go structure:
 ```
 open311-to-Go/
   src/
-    config/         # Configuration files and loader
+    config/         # Env-var config loader + .env.example
     domain/         # Domain models (service, user, serviceRequest)
     internal/
       api/          # API setup and route registration
@@ -130,6 +130,24 @@ open311-to-Go/
     main.go         # Main entry point
     Makefile        # Build and test commands
 ```
+
+## Configuration & running
+
+Configuration is **environment variables only** (12-factor) — there is no config
+file. [`src/.env.example`](src/.env.example) lists every variable with defaults;
+only `MONGODB_URI` is required.
+
+```sh
+cd src
+cp .env.example .env     # .env is gitignored; fill in MONGODB_URI etc.
+go run main.go           # loads ./.env if present; real env vars take precedence
+# make run               # same thing
+# make build             # outputs ./bin/open311api
+```
+
+MongoDB uses **X.509 certificate auth** (`MONGODB-X509` / `authSource=$external`),
+so the URI carries no password; `MONGODB_TLS_CERT_KEY_FILE` points to the client
+certificate + key PEM (kept outside the repo).
 
 ## Tests
 
