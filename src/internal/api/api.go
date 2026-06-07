@@ -96,6 +96,7 @@ func (a *API) registerRoutes(userHandler *handlers.UserHandler, serviceHandler *
 	a.router.Handle("POST", "/open311/v2/requests", serviceRequestHandler.CreateServiceRequest)
 	a.router.Handle("GET", "/open311/v2/requests/{id}", serviceRequestHandler.GetServiceRequest)
 	a.router.Handle("PUT", "/open311/v2/requests/{id}", serviceRequestHandler.UpsertServiceRequest)
+	a.router.Handle("DELETE", "/open311/v2/requests/{id}", serviceRequestHandler.DeleteServiceRequest)
 }
 
 // Handler returns the HTTP handler for the API

@@ -67,6 +67,16 @@ func (m *mockServiceRequestRepo) Upsert(ctx context.Context, req models.ServiceR
 	return req, true, nil
 }
 
+func (m *mockServiceRequestRepo) Delete(ctx context.Context, serviceRequestID string) error {
+	for i, existing := range m.data {
+		if existing.ServiceRequestID == serviceRequestID {
+			m.data = append(m.data[:i], m.data[i+1:]...)
+			return nil
+		}
+	}
+	return repository.ErrNotFound
+}
+
 func (m *mockServiceRequestRepo) FindByFeature(ctx context.Context, featureID, featureGuid string) ([]models.ServiceRequest, error) {
 	var results []models.ServiceRequest
 	for _, req := range m.data {
@@ -290,6 +300,29 @@ func TestUpsertServiceRequest(t *testing.T) {
 	t.Run("missing location -> 400", func(t *testing.T) {
 		w := jsonPut(&mockServiceRequestRepo{}, "sr-1", `{"service_code":"POTHOLE"}`)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+}
+
+func TestDeleteServiceRequest(t *testing.T) {
+	t.Run("deletes existing -> 200", func(t *testing.T) {
+		repo := &mockServiceRequestRepo{
+			data: []models.ServiceRequest{{ServiceRequestID: "sr-1"}},
+		}
+		handler := NewServiceRequestHandler(nil, repo)
+		r := withPathParam(httptest.NewRequest(http.MethodDelete, "/open311/v2/requests/sr-1", nil), "id", "sr-1")
+		w := httptest.NewRecorder()
+		handler.DeleteServiceRequest(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Len(t, repo.data, 0)
+	})
+
+	t.Run("missing -> 404", func(t *testing.T) {
+		repo := &mockServiceRequestRepo{}
+		handler := NewServiceRequestHandler(nil, repo)
+		r := withPathParam(httptest.NewRequest(http.MethodDelete, "/open311/v2/requests/nope", nil), "id", "nope")
+		w := httptest.NewRecorder()
+		handler.DeleteServiceRequest(w, r)
+		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
 }
 

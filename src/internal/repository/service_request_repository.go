@@ -39,6 +39,7 @@ type ServiceRequestRepository interface {
 	FindByServiceRequestID(ctx context.Context, serviceRequestID string) (models.ServiceRequest, error)
 	Create(ctx context.Context, req models.ServiceRequest) (models.ServiceRequest, error)
 	Upsert(ctx context.Context, req models.ServiceRequest) (models.ServiceRequest, bool, error)
+	Delete(ctx context.Context, serviceRequestID string) error
 	FindByFeature(ctx context.Context, featureID, featureGuid string) ([]models.ServiceRequest, error)
 	FindByOrganization(ctx context.Context, organizationID string) ([]models.ServiceRequest, error)
 }
@@ -319,6 +320,22 @@ func (r *MongoServiceRequestRepository) Upsert(ctx context.Context, req models.S
 		return models.ServiceRequest{}, false, err
 	}
 	return stored, created, nil
+}
+
+// Delete removes the service request identified by serviceRequestID (the natural
+// key). Returns ErrNotFound when no matching document exists.
+func (r *MongoServiceRequestRepository) Delete(ctx context.Context, serviceRequestID string) error {
+	if serviceRequestID == "" {
+		return ErrInvalidID
+	}
+	res, err := r.collection.DeleteOne(ctx, bson.M{"service_request_id": serviceRequestID})
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrDatabase, err)
+	}
+	if res.DeletedCount == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (r *MongoServiceRequestRepository) FindByFeature(ctx context.Context, featureID, featureGuid string) ([]models.ServiceRequest, error) {

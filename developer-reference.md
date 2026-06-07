@@ -249,6 +249,21 @@ importing a periodic Boston 311 dump): inserts the request if absent, fully
 
 ---
 
+## 4b. DELETE Service Request — project extension
+
+`DELETE /requests/{service_request_id}.{format}` — requires API key.
+
+Not part of GeoReport v2. Provided for **administrative cleanup** — removing test
+records or mis-imported rows from a bulk feed, keyed on `service_request_id`.
+
+> **Semantics:**
+> - **Status codes:** `200 OK` on success (body `{"message":"Service request
+>   deleted successfully"}`), `404 Not Found` when the id does not exist.
+> - Hard delete (the document is removed, not flagged). There is no soft-delete or
+>   status-based archival.
+
+---
+
 ## 5. GET Service Requests
 
 **Single:** `GET /requests/{service_request_id}.{format}`
@@ -506,7 +521,7 @@ feedback is the same append-only shape, but lives in its own
 | Service list | `GET /services` | ✅ implemented |
 | Service definition | `GET /services/{code}` | ⚠️ uses `{id}` (Mongo `_id`), not `service_code` |
 | Service CRUD | not in Open311 (admin only) | `POST/PUT/DELETE /services` exist |
-| Service requests | `GET /requests`, `GET /requests/{id}`, `POST /requests` | ✅ implemented (+ `PUT /requests/{id}` idempotent upsert, `/requests/search` & `/requests/by_organization` extensions) |
+| Service requests | `GET /requests`, `GET /requests/{id}`, `POST /requests` | ✅ implemented (+ `PUT /requests/{id}` idempotent upsert, `DELETE /requests/{id}` admin cleanup, `/requests/search` & `/requests/by_organization` extensions) |
 | Tokens | `GET /tokens/{id}` | ⏭️ not implemented — ids assigned synchronously |
 | Users | not part of Open311 | `GET /users`, `GET /users/{id}`; CRUD commented out |
 | Auth | `X-API-Key` + allowlist | ✅ `X-API-Key` on writes |
@@ -526,6 +541,7 @@ feedback is the same append-only shape, but lives in its own
 - [ ] Normalize collection naming (`users` lowercase)
 - [x] Canonical request endpoints `GET /requests`, `GET /requests/{id}`, `POST /requests` (tokens skipped — synchronous ids)
 - [x] Idempotent `PUT /requests/{id}` upsert (re-runnable bulk feeds; preserves supplied `updated_datetime`)
+- [x] `DELETE /requests/{id}` (admin cleanup of test / mis-imported records)
 - [x] Migrate route prefix `/api/v1` → `/open311/v2`
 - [ ] Service definition lookup by `service_code` (currently by Mongo `_id`)
 - [x] `X-API-Key` auth on writes (`API_KEYS` allowlist) + public `GET /health` (DB ping)

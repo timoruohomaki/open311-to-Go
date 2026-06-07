@@ -179,6 +179,34 @@ func (h *ServiceRequestHandler) UpsertServiceRequest(w http.ResponseWriter, r *h
 	h.sendServiceRequests(w, r, []models.ServiceRequest{stored}, code)
 }
 
+// DeleteServiceRequest handles DELETE /open311/v2/requests/{id} where id is the
+// service_request_id. Not part of GeoReport v2; provided for administrative
+// cleanup (e.g. removing test or mis-imported records). Returns 200 on success,
+// 404 when the request does not exist.
+func (h *ServiceRequestHandler) DeleteServiceRequest(w http.ResponseWriter, r *http.Request) {
+	id := httputil.GetPathParam(r, "id")
+	if id == "" {
+		h.SendError(w, r, http.StatusBadRequest, "Missing service_request_id")
+		return
+	}
+
+	err := h.repo.Delete(r.Context(), id)
+	if err != nil {
+		switch {
+		case errors.Is(err, repository.ErrNotFound):
+			h.SendError(w, r, http.StatusNotFound, "Service request not found")
+		case errors.Is(err, repository.ErrInvalidID):
+			h.SendError(w, r, http.StatusBadRequest, "Missing service_request_id")
+		default:
+			h.log.Errorf("Failed to delete service request: %v", err)
+			h.SendError(w, r, http.StatusInternalServerError, "Failed to delete service request")
+		}
+		return
+	}
+
+	h.SendResponse(w, r, http.StatusOK, MessageResponse{Message: "Service request deleted successfully"})
+}
+
 // SearchServiceRequestsByFeature handles GET /open311/v2/requests/search?featureId=...&featureGuid=...
 func (h *ServiceRequestHandler) SearchServiceRequestsByFeature(w http.ResponseWriter, r *http.Request) {
 	featureId := r.URL.Query().Get("featureId")
