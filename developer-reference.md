@@ -449,6 +449,7 @@ feedback is the same append-only shape, but lives in its own
 - [ ] External-media (Helsinki) support — _localization deferred; English only_
 - [ ] `properties` (PSK 5970) passthrough + validation
 - [ ] Integrate the NPS (Net Promoter Score) API as a satisfaction data source ([nps-api](https://github.com/timoruohomaki/nps-api))
-- [ ] MongoDB cert (X.509) authentication, secrets out of `config.json`
+- [x] MongoDB X.509 (`MONGODB-X509` / `$external`) cert auth wired in `connect()` (see [config.example.json](src/config/config.example.json))
+- [ ] Migrate config (URI, cert path, DSN) out of `config.json` to env vars
 - [ ] Resolve mongo-driver **v1 vs v2** (both currently pulled in)
 - [ ] Fix `Makefile` `build` target (`-o main.go` overwrites source)

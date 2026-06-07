@@ -5,6 +5,21 @@ import (
 	"os"
 )
 
+// MongoDBConfig holds the MongoDB connection settings.
+type MongoDBConfig struct {
+	URI              string `json:"uri"`
+	Database         string `json:"database"`
+	Collection       string `json:"collection"`
+	ConnectTimeout   int    `json:"connectTimeoutSeconds"`
+	OperationTimeout int    `json:"operationTimeoutSeconds"`
+	// TLSCertificateKeyFile is the path to the PEM file containing the client
+	// certificate and private key, used for MONGODB-X509 authentication.
+	TLSCertificateKeyFile string `json:"tlsCertificateKeyFile"`
+	// TLSCAFile is an optional path to a CA bundle. Leave empty to use the
+	// system root CAs (sufficient for MongoDB Atlas).
+	TLSCAFile string `json:"tlsCAFile"`
+}
+
 // Config represents the application configuration
 type Config struct {
 	Server struct {
@@ -24,13 +39,8 @@ type Config struct {
 		SyslogPort     string `json:"syslogPort"`
 		SyslogTag      string `json:"syslogTag"`
 	} `json:"logger"`
-	MongoDB struct {
-		URI              string `json:"uri"`
-		Database         string `json:"database"`
-		ConnectTimeout   int    `json:"connectTimeoutSeconds"`
-		OperationTimeout int    `json:"operationTimeoutSeconds"`
-	} `json:"mongodb"`
-	Sentry struct {
+	MongoDB MongoDBConfig `json:"mongodb"`
+	Sentry  struct {
 		DSN              string  `json:"dsn"`
 		EnableTracing    bool    `json:"enableTracing"`
 		TracesSampleRate float64 `json:"tracesSampleRate"`

@@ -1,0 +1,33 @@
+{
+  "server": {
+    "port": 8080,
+    "readTimeoutSeconds": 30,
+    "writeTimeoutSeconds": 30,
+    "idleTimeoutSeconds": 120,
+    "shutdownTimeoutSeconds": 30
+  },
+  "mongodb": {
+    "uri": "mongodb+srv://<cluster-host>/?authSource=%24external&authMechanism=MONGODB-X509&appName=<app>",
+    "database": "open311",
+    "collection": "open311-boston",
+    "connectTimeoutSeconds": 10,
+    "operationTimeoutSeconds": 5,
+    "tlsCertificateKeyFile": "/path/to/x509-client-cert-and-key.pem",
+    "tlsCAFile": ""
+  },
+  "logger": {
+    "level": "info",
+    "format": "text",
+    "toSyslog": true,
+    "syslogFacility": "local1",
+    "syslogHost": "127.0.0.1",
+    "syslogPort": "514",
+    "syslogTag": "open311api"
+  },
+  "sentry": {
+    "dsn": "https://<public-key>@<org>.ingest.sentry.io/<project>",
+    "enableTracing": true,
+    "tracesSampleRate": 1.0,
+    "sendDefaultPII": false
+  }
+}

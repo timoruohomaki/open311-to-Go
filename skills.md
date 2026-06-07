@@ -124,15 +124,26 @@ gofmt -l .
 
 ---
 
-## Recipe: add MongoDB cert (X.509) auth
+## MongoDB cert (X.509) auth — how it's wired
 
-When wiring hosted Mongo with certificate auth (target setup):
-- Connection string uses `authMechanism=MONGODB-X509` and
-  `tls=true` / `tlsCertificateKeyFile=<pem>`.
-- Configure via the driver `options.Client().SetTLSConfig(...)` rather than
-  embedding paths in the URI where possible.
-- Keep cert paths and any remaining secrets out of `config.json` (env vars).
-- Update `repository/mongodb.go` `connect()` and the config struct accordingly.
+Hosted Mongo (Atlas) uses certificate auth. This is **implemented**:
+- The connection string carries `authSource=$external` and
+  `authMechanism=MONGODB-X509` (URL-encode `$` as `%24` in JSON), e.g.
+  `mongodb+srv://<host>/?authSource=%24external&authMechanism=MONGODB-X509`.
+  Note there is **no username/password** — the client certificate is the
+  credential.
+- [`config.MongoDBConfig`](src/config/config.go) carries
+  `tlsCertificateKeyFile` (the **client** cert+key PEM — the X.509 user
+  downloaded from Atlas, not the CA) and an optional `tlsCAFile` (leave empty to
+  use system roots; Atlas's server cert chains to a public CA).
+- [`repository.buildTLSConfig`](src/internal/repository/mongodb.go) loads them
+  via `tls.LoadX509KeyPair(path, path)` (same path twice ⇒ cert+key in one file)
+  and `connect()` applies them with `options.Client().SetTLSConfig(...)`.
+- See [config.example.json](src/config/config.example.json) for the full shape.
+  `config.json` is gitignored; the cert PEM lives outside the repo.
+
+> Pending: migrate config to env vars (nps-api pattern) so paths/DSNs aren't in
+> a file at all — tracked in the overhaul checklist.
 
 ---
 

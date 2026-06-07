@@ -91,7 +91,7 @@ Open311 GeoReport v2 endpoints (target contract — see [developer-reference.md]
 Cross-cutting (not started):
 
 * [ ]  Security — API auth (`X-API-Key` allowlist), rate limiting, TLS
-* [ ]  MongoDB X.509 certificate authentication
+* [x]  MongoDB X.509 certificate authentication (wired; see [config.example.json](src/config/config.example.json))
 * [ ]  Schema validation on XML messages
 * [ ]  GeoJSON storage + `2dsphere` spatial index
 * [x]  BSON tag / `_id` mapping fix (persistence-DTO pattern; see [developer-reference §8](developer-reference.md#8-data-model--mongodb-mapping))

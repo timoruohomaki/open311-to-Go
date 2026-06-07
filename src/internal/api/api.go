@@ -31,7 +31,7 @@ func New(cfg *config.Config, log logger.Logger, accessLog logger.Logger, db *rep
 	// Initialize repositories
 	userRepo := repository.NewMongoUserRepository(db)
 	serviceRepo := repository.NewMongoServiceRepository(db)
-	serviceRequestRepo := repository.NewMongoServiceRequestRepository(db)
+	serviceRequestRepo := repository.NewMongoServiceRequestRepository(db, cfg.MongoDB.Collection)
 
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(log, userRepo)

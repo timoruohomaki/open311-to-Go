@@ -2,9 +2,13 @@ package repository
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"os"
 	"time"
 
+	"github.com/timoruohomaki/open311-to-Go/config"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -14,39 +18,15 @@ import (
 type MongoDB struct {
 	client   *mongo.Client
 	database *mongo.Database
-	config   struct {
-		URI              string
-		Database         string
-		ConnectTimeout   int
-		OperationTimeout int
-	}
+	config   config.MongoDBConfig
 }
 
 // NewMongoDBConnection creates a new MongoDB connection
-func NewMongoDBConnection(cfg struct {
-	URI              string `json:"uri"`
-	Database         string `json:"database"`
-	ConnectTimeout   int    `json:"connectTimeoutSeconds"`
-	OperationTimeout int    `json:"operationTimeoutSeconds"`
-}) (*MongoDB, error) {
-	// Create MongoDB instance
-	db := &MongoDB{
-		config: struct {
-			URI              string
-			Database         string
-			ConnectTimeout   int
-			OperationTimeout int
-		}{
-			URI:              cfg.URI,
-			Database:         cfg.Database,
-			ConnectTimeout:   cfg.ConnectTimeout,
-			OperationTimeout: cfg.OperationTimeout,
-		},
-	}
+func NewMongoDBConnection(cfg config.MongoDBConfig) (*MongoDB, error) {
+	db := &MongoDB{config: cfg}
 
 	// Connect to MongoDB
 	if err := db.connect(); err != nil {
-
 		return nil, err
 	}
 
@@ -57,6 +37,17 @@ func NewMongoDBConnection(cfg struct {
 func (db *MongoDB) connect() error {
 	// Create MongoDB client options
 	clientOptions := options.Client().ApplyURI(db.config.URI)
+
+	// For MONGODB-X509 authentication, load the client certificate (and an
+	// optional CA bundle) into the TLS config. The auth mechanism and
+	// authSource=$external come from the connection string itself.
+	if db.config.TLSCertificateKeyFile != "" || db.config.TLSCAFile != "" {
+		tlsConfig, err := buildTLSConfig(db.config.TLSCertificateKeyFile, db.config.TLSCAFile)
+		if err != nil {
+			return fmt.Errorf("failed to build TLS config: %w", err)
+		}
+		clientOptions.SetTLSConfig(tlsConfig)
+	}
 
 	// Set connect timeout
 	ctx, cancel := context.WithTimeout(
@@ -81,6 +72,36 @@ func (db *MongoDB) connect() error {
 	db.database = client.Database(db.config.Database)
 
 	return nil
+}
+
+// buildTLSConfig loads an X.509 client certificate/key (combined PEM) and an
+// optional CA bundle for MongoDB TLS connections.
+func buildTLSConfig(certKeyFile, caFile string) (*tls.Config, error) {
+	tlsConfig := &tls.Config{}
+
+	if certKeyFile != "" {
+		// The client certificate and private key may live in the same PEM file,
+		// so the same path is passed for both the cert and the key.
+		cert, err := tls.LoadX509KeyPair(certKeyFile, certKeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("loading client certificate %q: %w", certKeyFile, err)
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+
+	if caFile != "" {
+		caPEM, err := os.ReadFile(caFile)
+		if err != nil {
+			return nil, fmt.Errorf("reading CA file %q: %w", caFile, err)
+		}
+		pool := x509.NewCertPool()
+		if !pool.AppendCertsFromPEM(caPEM) {
+			return nil, fmt.Errorf("no certificates found in CA file %q", caFile)
+		}
+		tlsConfig.RootCAs = pool
+	}
+
+	return tlsConfig, nil
 }
 
 // Disconnect closes the MongoDB connection

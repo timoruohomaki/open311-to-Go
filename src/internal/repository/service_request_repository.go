@@ -77,10 +77,13 @@ type MongoServiceRequestRepository struct {
 	collection *mongo.Collection
 }
 
-func NewMongoServiceRequestRepository(db *MongoDB) ServiceRequestRepository {
+func NewMongoServiceRequestRepository(db *MongoDB, collection string) ServiceRequestRepository {
+	if collection == "" {
+		collection = "service_requests"
+	}
 	return &MongoServiceRequestRepository{
 		db:         db,
-		collection: db.GetCollection("service_requests"),
+		collection: db.GetCollection(collection),
 	}
 }
 
