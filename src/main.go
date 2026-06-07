@@ -66,6 +66,15 @@ func main() {
 
 	defer db.Disconnect()
 
+	// Ensure indexes (idempotent). Non-fatal: log and continue if it fails.
+	idxCtx, idxCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	if err := repository.EnsureIndexes(idxCtx, db, cfg.MongoDB.Collection); err != nil {
+		log.Warnf("Failed to ensure MongoDB indexes: %v", err)
+	} else {
+		log.Info("MongoDB indexes ensured")
+	}
+	idxCancel()
+
 	// Initialize Sentry
 	err = sentry.Init(sentry.ClientOptions{
 		Dsn:              cfg.Sentry.DSN,

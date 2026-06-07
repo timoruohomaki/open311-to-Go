@@ -8,79 +8,53 @@ import (
 	"strings"
 )
 
-// Response is a generic API response structure
-type Response struct {
-	Status  string      `json:"status" xml:"status"`
-	Message string      `json:"message,omitempty" xml:"message,omitempty"`
-	Data    interface{} `json:"data,omitempty" xml:"data,omitempty"`
+// wantsXML reports whether the client asked for XML via the Accept header.
+func wantsXML(r *http.Request) bool {
+	return strings.Contains(r.Header.Get("Accept"), "application/xml")
 }
 
-// XMLResponse is a wrapper to make XML responses work with arbitrary data
-type XMLResponse struct {
-	XMLName xml.Name    `xml:"response"`
-	Status  string      `xml:"status"`
-	Message string      `xml:"message,omitempty"`
-	Data    interface{} `xml:"data,omitempty"`
-}
-
-// Send sends the response in the format specified by the Accept header
+// Send writes data directly (no envelope) in the format chosen by the Accept
+// header. The data value carries its own json/xml struct tags.
 func Send(w http.ResponseWriter, r *http.Request, statusCode int, data interface{}) error {
-	acceptHeader := r.Header.Get("Accept")
-
-	response := Response{
-		Status: http.StatusText(statusCode),
-		Data:   data,
+	if wantsXML(r) {
+		return SendXML(w, statusCode, data)
 	}
-
-	if strings.Contains(acceptHeader, "application/xml") {
-		return SendXML(w, statusCode, response)
-	}
-
-	return SendJSON(w, statusCode, response)
+	return SendJSON(w, statusCode, data)
 }
 
-// SendJSON sends a JSON response
+// SendJSON writes data as JSON.
 func SendJSON(w http.ResponseWriter, statusCode int, data interface{}) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-
 	return json.NewEncoder(w).Encode(data)
 }
 
-// SendXML sends an XML response
+// SendXML writes data as XML.
 func SendXML(w http.ResponseWriter, statusCode int, data interface{}) error {
 	w.Header().Set("Content-Type", "application/xml")
 	w.WriteHeader(statusCode)
-
-	// Convert to XMLResponse to ensure proper XML structure
-	xmlData := XMLResponse{
-		Status: http.StatusText(statusCode),
-	}
-
-	// If data is already a Response, extract its fields
-	if resp, ok := data.(Response); ok {
-		xmlData.Status = resp.Status
-		xmlData.Message = resp.Message
-		xmlData.Data = resp.Data
-	} else {
-		xmlData.Data = data
-	}
-
-	return xml.NewEncoder(w).Encode(xmlData)
+	return xml.NewEncoder(w).Encode(data)
 }
 
-// SendError sends an error response
+// APIError is a single error entry in the Open311 errors document.
+type APIError struct {
+	XMLName     xml.Name `json:"-" xml:"error"`
+	Code        int      `json:"code" xml:"code"`
+	Description string   `json:"description" xml:"description"`
+}
+
+// APIErrors is the Open311 GeoReport v2 error envelope:
+// {"errors":[{"code":400,"description":"..."}]} / <errors><error>...</error></errors>.
+type APIErrors struct {
+	XMLName xml.Name   `json:"-" xml:"errors"`
+	Errors  []APIError `json:"errors" xml:"error"`
+}
+
+// SendError writes an error response in the Open311 errors format.
 func SendError(w http.ResponseWriter, r *http.Request, statusCode int, message string) error {
-	response := Response{
-		Status:  http.StatusText(statusCode),
-		Message: message,
+	payload := APIErrors{Errors: []APIError{{Code: statusCode, Description: message}}}
+	if wantsXML(r) {
+		return SendXML(w, statusCode, payload)
 	}
-
-	acceptHeader := r.Header.Get("Accept")
-
-	if strings.Contains(acceptHeader, "application/xml") {
-		return SendXML(w, statusCode, response)
-	}
-
-	return SendJSON(w, statusCode, response)
+	return SendJSON(w, statusCode, payload)
 }

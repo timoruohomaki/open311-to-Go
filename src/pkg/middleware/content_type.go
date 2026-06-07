@@ -3,6 +3,8 @@ package middleware
 import (
 	"net/http"
 	"strings"
+
+	"github.com/timoruohomaki/open311-to-Go/pkg/httputil"
 )
 
 // ContentTypeMiddleware handles content negotiation based on Accept header
@@ -23,12 +25,12 @@ func ContentTypeMiddleware(next http.Handler) http.Handler {
 		contentType := r.Header.Get("Content-Type")
 		if r.Method == "POST" || r.Method == "PUT" {
 			if contentType == "" {
-				http.Error(w, "Content-Type header is required", http.StatusBadRequest)
+				_ = httputil.SendError(w, r, http.StatusBadRequest, "Content-Type header is required")
 				return
 			}
 
 			if !strings.Contains(contentType, "application/json") && !strings.Contains(contentType, "application/xml") {
-				http.Error(w, "Content-Type must be application/json or application/xml", http.StatusUnsupportedMediaType)
+				_ = httputil.SendError(w, r, http.StatusUnsupportedMediaType, "Content-Type must be application/json or application/xml")
 				return
 			}
 		}

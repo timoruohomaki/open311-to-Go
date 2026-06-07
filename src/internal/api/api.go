@@ -24,13 +24,19 @@ func New(cfg *config.Config, log logger.Logger, accessLog logger.Logger, db *rep
 	// Create router
 	r := router.New()
 
-	// Add middleware (outermost first): access log -> API key -> content type
+	// Add middleware (outermost first): access log -> rate limit -> API key -> content type
 	r.Use(middleware.LoggingMiddleware(accessLog))
+	r.Use(middleware.RateLimitMiddleware(cfg.RateLimit.RequestsPerMinute))
 	r.Use(middleware.APIKeyMiddleware(cfg.Auth.APIKeys))
 	r.Use(middleware.ContentTypeMiddleware)
 
 	if len(cfg.Auth.APIKeys) == 0 {
 		log.Warnf("API_KEYS is not set; write endpoints (POST/PUT/DELETE) are unauthenticated")
+	}
+	if cfg.RateLimit.RequestsPerMinute <= 0 {
+		log.Infof("Rate limiting disabled (RATE_LIMIT_RPM unset)")
+	} else {
+		log.Infof("Rate limiting enabled: %d requests/min per client", cfg.RateLimit.RequestsPerMinute)
 	}
 
 	// Initialize repositories

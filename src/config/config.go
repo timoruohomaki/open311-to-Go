@@ -58,6 +58,11 @@ type Config struct {
 		// comma-separated). Empty disables write authentication.
 		APIKeys []string
 	}
+	RateLimit struct {
+		// RequestsPerMinute is the per-client request cap (from RATE_LIMIT_RPM).
+		// 0 disables rate limiting.
+		RequestsPerMinute int
+	}
 }
 
 // Load builds the configuration from environment variables, applying sensible
@@ -96,6 +101,8 @@ func Load() (*Config, error) {
 	cfg.Sentry.SendDefaultPII = getEnvBool("SENTRY_SEND_DEFAULT_PII", false)
 
 	cfg.Auth.APIKeys = splitAndTrim(getEnv("API_KEYS", ""))
+
+	cfg.RateLimit.RequestsPerMinute = getEnvInt("RATE_LIMIT_RPM", 0)
 
 	if cfg.MongoDB.URI == "" {
 		return nil, fmt.Errorf("MONGODB_URI is required")

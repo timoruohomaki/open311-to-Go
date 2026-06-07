@@ -92,10 +92,12 @@ Cross-cutting (not started):
 
 * [x]  API auth — `X-API-Key` on writes (`API_KEYS` allowlist); reads public
 * [x]  `GET /health` — liveness + MongoDB connectivity (503 when DB unreachable)
-* [ ]  Rate limiting (10 req/min, `429` + `Retry-After`) and TLS termination
+* [x]  Rate limiting (`RATE_LIMIT_RPM`, fixed window, `429` + `Retry-After`; default off)
+* [x]  Bare Open311 response shape (no `{status,data}` envelope; `errors` format)
 * [x]  MongoDB X.509 certificate authentication (wired; see [.env.example](src/.env.example))
 * [ ]  Schema validation on XML messages
-* [ ]  GeoJSON storage + `2dsphere` spatial index
+* [x]  GeoJSON storage + `2dsphere` spatial index (via `EnsureIndexes`; `Create` derives `location`)
+* [ ]  TLS termination (handled at the proxy / backend01)
 * [x]  BSON tag / `_id` mapping fix (persistence-DTO pattern; see [developer-reference §8](developer-reference.md#8-data-model--mongodb-mapping))
 * [ ]  External media server (Helsinki) — _localization deferred; English only_
 * [ ]  Inline `properties` (PSK 5970) passthrough

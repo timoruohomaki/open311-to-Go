@@ -76,6 +76,14 @@ defaults and requires only `MONGODB_URI`.
 - **Auth:** writes (`POST`/`PUT`/`PATCH`/`DELETE`) require a valid `X-API-Key`
   via `middleware.APIKeyMiddleware` (allowlist from `API_KEYS`); reads and
   `GET /health` are public. Empty `API_KEYS` disables write auth (dev) + warns.
+- **Rate limiting:** `middleware.RateLimitMiddleware` (`RATE_LIMIT_RPM`, fixed
+  window per client via X-Forwarded-For; `/health` exempt; `429` + `Retry-After`).
+  0 disables (default).
+- **Responses:** bare Open311 docs via `httputil.Send` (no envelope); errors via
+  `httputil.SendError` (`{errors:[{code,description}]}`). Middleware order:
+  log → rate-limit → API-key → content-type.
+- **Indexes:** `repository.EnsureIndexes` runs at startup (idempotent). New
+  query fields should get an index there; `Create` derives a GeoJSON `location`.
 - **Health:** `GET /health` pings MongoDB (`200` healthy / `503` unhealthy).
 
 ---

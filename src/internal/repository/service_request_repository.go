@@ -67,6 +67,15 @@ type serviceRequestDoc struct {
 	FeatureID         *string            `bson:"featureId,omitempty"`
 	FeatureGuid       *string            `bson:"featureGuid,omitempty"`
 	OrganizationID    string             `bson:"organizationId,omitempty"`
+	// Location is a GeoJSON Point [long, lat] derived from lat/long, indexed
+	// with 2dsphere for spatial queries. Omitted when no coordinates are set.
+	Location *geoPoint `bson:"location,omitempty"`
+}
+
+// geoPoint is a GeoJSON Point. Coordinates are [longitude, latitude].
+type geoPoint struct {
+	Type        string    `bson:"type"`
+	Coordinates []float64 `bson:"coordinates"`
 }
 
 func (d serviceRequestDoc) toModel() models.ServiceRequest {
@@ -126,6 +135,10 @@ func serviceRequestDocFromModel(m models.ServiceRequest) serviceRequestDoc {
 		if oid, err := primitive.ObjectIDFromHex(m.ID); err == nil {
 			doc.ID = oid
 		}
+	}
+	// Derive the GeoJSON location (GeoJSON order is [long, lat]).
+	if m.Latitude != 0 || m.Longitude != 0 {
+		doc.Location = &geoPoint{Type: "Point", Coordinates: []float64{m.Longitude, m.Latitude}}
 	}
 	return doc
 }

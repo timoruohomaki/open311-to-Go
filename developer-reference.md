@@ -37,6 +37,10 @@ prefix. The current code uses `/api/v1/`; migrating it is part of the overhaul
 - This project _additionally_ negotiates via the `Accept` header
   (`application/json` default, `application/xml`). `Content-Type` is required and
   validated on `POST`/`PUT` by `ContentTypeMiddleware`.
+- **Response shape:** bare Open311 documents — success responses write the data
+  directly (a JSON array/object, or the XML collection element) with no envelope;
+  errors use the `errors` document (see Error format). Helpers:
+  `httputil.Send` / `httputil.SendError`.
 
 ### Jurisdiction
 `jurisdiction_id` is required only when an endpoint serves multiple
@@ -62,9 +66,13 @@ spec compatibility.
 `{"status":"unhealthy","database":"unreachable"}` otherwise — suitable for load
 balancer / container liveness probes and for confirming DB connectivity.
 
-### Rate limiting (Boston)
-- Default **10 requests/minute**; request an application key for more.
-- `429 Too Many Requests` when exceeded; honor the `Retry-After` header.
+### Rate limiting
+- **Implemented** as `middleware.RateLimitMiddleware`: a fixed-window per-client
+  cap from `RATE_LIMIT_RPM` (0 = disabled, the default). `/health` is exempt.
+  Client identity prefers the first `X-Forwarded-For` hop (set by the fronting
+  proxy), falling back to `RemoteAddr`.
+- On exceed: `429 Too Many Requests` with a `Retry-After` header.
+- Boston's public reference uses **10 requests/minute**.
 
 ### Dates
 ISO 8601 with timezone, e.g. `2026-06-07T08:15:30-05:00` or
@@ -177,9 +185,6 @@ Returned only when the service's `metadata` is `true`.
 > with this JSON/XML-first API):
 > - **Body format:** we accept `application/json` or `application/xml`, *not*
 >   GeoReport's `application/x-www-form-urlencoded`.
-> - **Response envelope:** all responses are wrapped in this project's
->   `{status, data}` (JSON) / `<response>` (XML) envelope rather than a bare
->   Open311 document. Normalizing this is a tracked follow-up.
 > - **`service_request_id`:** assigned synchronously at creation (the new
 >   ObjectID hex), so responses always return `service_request_id` and never a
 >   `token`. Defaults applied on create: `status=open`, `requested_datetime`/
@@ -424,12 +429,17 @@ against current MongoDB docs):
 | No change streams, no schema validation, no CSFLE, no writes in transactions | XML schema validation, future change-driven pipelines |
 | Collection type is fixed at creation; can't convert either direction | a wrong choice is expensive to undo |
 
-So the **entity of record** lives in a regular collection. Provision
-`service_requests` with:
+So the **entity of record** lives in a regular collection. These indexes are
+created idempotently at startup by `repository.EnsureIndexes`:
 - a **unique** index on `service_request_id`
 - a **`2dsphere`** index on a GeoJSON `location` field (`[long, lat]`)
 - secondary indexes on `status`, `organizationId`, `featureId`, and
   `requested_datetime` / `updated_datetime` (for Boston's date-range queries)
+- plus unique `service_code` (`services`) and sparse-unique `email` (`Users`)
+
+`Create` derives the GeoJSON `location` from the request's `lat`/`long`. **Data
+imported by an external pipeline must populate a `location` GeoJSON field** to be
+covered by the `2dsphere` index (documents missing it are simply not geo-indexed).
 
 **Where time-series *is* the right tool (future):** an **append-only event
 stream** — exactly the "cases and **events**" half of PSK 5970 / ISO 55000.
@@ -455,8 +465,10 @@ feedback is the same append-only shape, but lives in its own
 | Service requests | `GET /requests`, `GET /requests/{id}`, `POST /requests` | ✅ implemented (+ `/requests/search` & `/requests/by_organization` extensions) |
 | Tokens | `GET /tokens/{id}` | ⏭️ not implemented — ids assigned synchronously |
 | Users | not part of Open311 | `GET /users`, `GET /users/{id}`; CRUD commented out |
-| Auth | `X-API-Key` + allowlist + rate limit | ✅ `X-API-Key` on writes; rate limit pending |
+| Auth | `X-API-Key` + allowlist | ✅ `X-API-Key` on writes |
+| Rate limiting | 10/min, `429` + `Retry-After` | ✅ configurable (`RATE_LIMIT_RPM`, default off) |
 | Health check | `GET /health` (DB ping) | ✅ implemented |
+| Response shape | bare Open311 docs / `errors` | ✅ normalized (no `{status,data}` envelope) |
 | XML schema validation | required | not started |
 | BSON mapping | `_id` mapped, names consistent | ✅ fixed (persistence-DTO pattern) |
 | Storage / collections | regular collections + GeoJSON `2dsphere`, unique `service_request_id` (decided; not time-series) | no indexes defined yet |
@@ -472,7 +484,9 @@ feedback is the same append-only shape, but lives in its own
 - [ ] Service definition lookup by `service_code` (currently by Mongo `_id`)
 - [x] `X-API-Key` auth on writes (`API_KEYS` allowlist) + public `GET /health` (DB ping)
 - [ ] Rate limiting (Boston: 10 req/min, `429` + `Retry-After`)
-- [ ] Provision indexes: unique `service_request_id`, `2dsphere` on GeoJSON `location`, secondary on `status`/`organizationId`/`featureId`/`*_datetime` (regular collections — see §8 Collection topology)
+- [x] Provision indexes via `repository.EnsureIndexes` (unique `service_request_id`, `2dsphere` on GeoJSON `location`, secondaries; unique `service_code`/`email`)
+- [x] Rate limiting (`RATE_LIMIT_RPM`, fixed-window, `429` + `Retry-After`)
+- [x] Response-envelope normalization (bare Open311 docs + `errors` format)
 - [ ] XML schema validation
 - [ ] External-media (Helsinki) support — _localization deferred; English only_
 - [ ] `properties` (PSK 5970) passthrough + validation
