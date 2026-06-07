@@ -61,7 +61,9 @@ spec compatibility.
   warning at startup.
 
 ### Health check
-`GET /health` (public) pings MongoDB and returns `200`
+`GET /health` **and** `GET /open311/v2/health` (public) — the prefixed path is
+needed because the fronting proxy routes only `/open311/v2/*` to the service (the
+bare `/health` is intercepted by the gateway). Pings MongoDB and returns `200`
 `{"status":"healthy","database":"ok",...}` when reachable, or `503`
 `{"status":"unhealthy","database":"unreachable"}` otherwise — suitable for load
 balancer / container liveness probes and for confirming DB connectivity.
@@ -314,7 +316,7 @@ Service. It is a separate sibling service:
 **citizen/user satisfaction signal** that can be correlated with service
 requests and assets.
 
-Same stack as this project (Go 1.24+, MongoDB Atlas, Sentry, Docker, GitHub
+Same stack as this project (Go 1.26+, MongoDB Atlas, Sentry, Docker, GitHub
 Actions), so it doubles as an **architectural reference** for several overhaul
 decisions (see notes below).
 

@@ -65,8 +65,11 @@ func New(cfg *config.Config, log logger.Logger, accessLog logger.Logger, db *rep
 
 // registerRoutes sets up all API routes
 func (a *API) registerRoutes(userHandler *handlers.UserHandler, serviceHandler *handlers.ServiceHandler, serviceRequestHandler *handlers.ServiceRequestHandler, healthHandler *handlers.HealthHandler) {
-	// Health check (public, used for liveness + MongoDB connectivity)
+	// Health check (public, used for liveness + MongoDB connectivity). Registered
+	// both at the top level and under the API prefix, since the fronting proxy
+	// routes only /open311/v2/* to this service.
 	a.router.Handle("GET", "/health", healthHandler.Health)
+	a.router.Handle("GET", "/open311/v2/health", healthHandler.Health)
 
 	// User routes
 	a.router.Handle("GET", "/open311/v2/users", userHandler.GetUsers)

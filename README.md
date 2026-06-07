@@ -58,7 +58,7 @@ Reference docs: [Boston BOS:311](https://311.boston.gov/open311/docs) ·
 
 ## Development framework and versions
 
-* This work uses golang version 1.24.x [^1] (`go.mod` currently pins 1.24.1). The work depends on the new Go net/http routing capabilities so a version of 1.22 or newer is required.
+* This work uses golang version 1.26.x [^1] (`go.mod` pins 1.26.4). The work depends on the new Go net/http routing capabilities so a version of 1.22 or newer is required.
 * Deployment and containerization are handled externally by the **backend01** devops project (same model as the sibling nps-api); this repo carries no Dockerfile. The dev server is Ubuntu 22.04 hosted at api.spatialworks.fi
 * The development is done using Visual Studio Code - however it shouldn't make any difference what editor to use
 * Sentry is used for telemetry (free version will be enough).

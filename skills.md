@@ -19,7 +19,7 @@ with [developer-reference.md](developer-reference.md) (the API contract) and
 | [`src/internal/repository/`](src/internal/repository/) | Mongo connection + per-entity repos |
 | [`src/pkg/`](src/pkg/) | Reusable: `router`, `middleware`, `logger`, `httputil`, `app` (unused) |
 
-Module: `github.com/timoruohomaki/open311-to-Go` · Go **1.24.x** · net/http
+Module: `github.com/timoruohomaki/open311-to-Go` · Go **1.26.x** · net/http
 routing (1.22+).
 
 ---

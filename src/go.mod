@@ -1,6 +1,6 @@
 module github.com/timoruohomaki/open311-to-Go
 
-go 1.24.1
+go 1.26.4
 
 require (
 	github.com/getsentry/sentry-go v0.34.0

@@ -51,8 +51,10 @@ func TestUserFieldsAndMarshaling(t *testing.T) {
 		assert.Equal(t, OrgTypeSupervisor, u.OrgType)
 	})
 
-	t.Run("default OrgType is unknown", func(t *testing.T) {
+	t.Run("zero-value OrgType is empty", func(t *testing.T) {
 		var u User
-		assert.Equal(t, OrgTypeUnknown, u.OrgType)
+		// The zero value of a string-based type is "", not OrgTypeUnknown.
+		// Callers that need "unknown" semantics should set it explicitly.
+		assert.Equal(t, OrgType(""), u.OrgType)
 	})
 }
