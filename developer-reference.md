@@ -378,6 +378,46 @@ spatial queries (`$near`, `$geoWithin`) for the data-lake. Keep canonical
 coordinates in WGS84; the Open311 `lat`/`long` fields map to GeoJSON
 `[long, lat]` order (note the swap).
 
+### Collection topology — regular vs. time-series
+
+**Decision: `service_requests`, `services`, and `users` are regular
+collections, NOT MongoDB time-series collections.**
+
+It's tempting to model service requests as time-series data because each one
+arrives with a timestamp. But a service request is a **mutable entity with a
+lifecycle** (its `status` moves open → in_progress → closed, and
+`status_notes` / `updated_datetime` / `expected_datetime` change over time), not
+an immutable measurement. MongoDB time-series collections are purpose-built for
+append-only data points, and their limitations are disqualifying here (verified
+against current MongoDB docs):
+
+| Time-series limitation | Open311 / data-lake need it breaks |
+|---|---|
+| Updates may modify **only the `metaField`** — no other field is updatable | `status`, `status_notes`, `updated_datetime`, `expected_datetime` all change |
+| **No unique indexes** | unique `service_request_id` |
+| **No `$near` / `$nearSphere`**; geospatial only via the `$geoNear` aggregation, and `2d` indexes only on the `metaField` | spatial `$near` / `$geoWithin` queries are core to the data-lake |
+| **No direct deletes** (TTL only) | admin delete / GDPR erasure |
+| No change streams, no schema validation, no CSFLE, no writes in transactions | XML schema validation, future change-driven pipelines |
+| Collection type is fixed at creation; can't convert either direction | a wrong choice is expensive to undo |
+
+So the **entity of record** lives in a regular collection. Provision
+`service_requests` with:
+- a **unique** index on `service_request_id`
+- a **`2dsphere`** index on a GeoJSON `location` field (`[long, lat]`)
+- secondary indexes on `status`, `organizationId`, `featureId`, and
+  `requested_datetime` / `updated_datetime` (for Boston's date-range queries)
+
+**Where time-series *is* the right tool (future):** an **append-only event
+stream** — exactly the "cases and **events**" half of PSK 5970 / ISO 55000.
+When we add a status-change / activity log or asset condition/inspection
+measurements, model *those* as a separate time-series collection
+(`timeField = timestamp`, `metaField = service_request_id` or `asset_id`). That
+data never mutates, so it gets the columnar compression and fast time-bucketed
+analytics time-series is designed for. Rule of thumb: **the record of state →
+regular collection; the immutable history of changes → time-series.** (NPS
+feedback is the same append-only shape, but lives in its own
+[nps-api](https://github.com/timoruohomaki/nps-api) service.)
+
 ---
 
 ## 9. Current state vs contract (drift)
@@ -393,6 +433,7 @@ coordinates in WGS84; the Open311 `lat`/`long` fields map to GeoJSON
 | Auth | `X-API-Key` + allowlist + rate limit | none |
 | XML schema validation | required | not started |
 | BSON mapping | `_id` mapped, names consistent | ✅ fixed (persistence-DTO pattern) |
+| Storage / collections | regular collections + GeoJSON `2dsphere`, unique `service_request_id` (decided; not time-series) | no indexes defined yet |
 
 ---
 
@@ -403,7 +444,7 @@ coordinates in WGS84; the Open311 `lat`/`long` fields map to GeoJSON
 - [ ] Implement the canonical request endpoints (`/requests`, `/requests/{id}`, `POST /requests`, `/tokens/{id}`)
 - [ ] Migrate route prefix `/api/v1` → `/open311/v2`
 - [ ] API authentication (`X-API-Key` + `API_KEYS` allowlist) and rate limiting
-- [ ] GeoJSON storage + `2dsphere` index for spatial queries
+- [ ] Provision indexes: unique `service_request_id`, `2dsphere` on GeoJSON `location`, secondary on `status`/`organizationId`/`featureId`/`*_datetime` (regular collections — see §8 Collection topology)
 - [ ] XML schema validation
 - [ ] External-media (Helsinki) support — _localization deferred; English only_
 - [ ] `properties` (PSK 5970) passthrough + validation
