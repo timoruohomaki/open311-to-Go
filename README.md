@@ -28,28 +28,76 @@ This implementation also uses MongoDB as a backend, also utilizing its spatial f
 
 Due to the experimental nature of this implementation, the schema for service request is extended with inline properties object, containing user-annotated properties as key-value pairs. This approach makes it possible to support use cases where there are additional properties in the service request, e.g. because of supporting a specific standard such as the Finnish PSK 5970 that defines the schema for data record of cases and events. With this approach, the goal is to link citizen feedback with ISO 55000 asset management practises.
 
+## Project context: spatial-data-lake
+
+This API is a building block of the **spatial-data-lake** project — a municipal
+asset-management data structure that combines Open311 with an NPS (Net Promoter
+Score) satisfaction-feedback API ([nps-api](https://github.com/timoruohomaki/nps-api),
+a sibling Go/MongoDB service). Our
+dataset comes from the **City of Boston (BOS:311)**, so Boston's implementation is
+our primary reference for the API contract, extended where useful (as is the
+convention in most cities). We adopt the City of Helsinki extensions for external
+media servers and localization, run hosted MongoDB with **certificate (X.509)
+authentication**, and use Sentry for monitoring.
+
+> This project had been dormant for some time; an overhaul is in progress. See
+> the [overhaul checklist](developer-reference.md#10-overhaul-checklist-high-level).
+
+## API contract & documentation
+
+- **[developer-reference.md](developer-reference.md)** — the API contract:
+  GeoReport v2 endpoints as we implement them, the Boston flavor, Helsinki and
+  PSK 5970 extensions, the data model / MongoDB mapping, and where the current
+  code still diverges from the contract.
+- **[skills.md](skills.md)** — engineering playbook: build/run/test commands,
+  conventions, known gotchas, and recipes for adding endpoints.
+
+Reference docs: [Boston BOS:311](https://311.boston.gov/open311/docs) ·
+[GeoReport v2 spec](http://wiki.open311.org/GeoReport_v2/) ·
+[Helsinki Open311](https://dev.hel.fi/apis/open311)
+
 ## Development framework and versions
 
-* This work uses golang version 1.24.4 [^1]. The work depends on the new Go net/http routing capabilities so a version of 1.22 or newer is required.
+* This work uses golang version 1.24.x [^1] (`go.mod` currently pins 1.24.1). The work depends on the new Go net/http routing capabilities so a version of 1.22 or newer is required.
 * The API will eventually be deployed as an Azure Function because it will then be easier to transfer to production platform. The dev server is Ubuntu 22.04 hosted at api.spatialworks.fi
 * The development is done using Visual Studio Code - however it shouldn't make any difference what editor to use
 * Sentry is used for telemetry (free version will be enough).
 * API examples and tests collection is managed with [Bruno](https://www.usebruno.com/)
 
-## Implementation Status (initial implementation)
+## Implementation Status
+
+Infrastructure (done):
 
 * [x]  Github action for Ubuntu ci/cd pipeline
 * [x]  Logging (Syslog)
 * [x]  Observability (Sentry)
 * [x]  MongoDB database backend
-* [ ]  Security (TLS, authentication, authorization)
+* [x]  Content negotiation (JSON / XML) middleware
+
+Open311 GeoReport v2 endpoints (target contract — see [developer-reference.md](developer-reference.md)):
+
+* [ ]  GET Service List — `GET /services` _(partial: route exists)_
+* [ ]  GET Service Definition — `GET /services/{service_code}` _(partial: uses `{id}`)_
+* [ ]  POST Service Request — `POST /requests`
+* [ ]  GET Service Request by id — `GET /requests/{id}`
+* [ ]  GET Service Requests (list) — `GET /requests`
+* [ ]  GET service_request_id from token — `GET /tokens/{id}`
+
+> Routes will be served under the `/open311/v2/` prefix (decided), migrating
+> from the current `/api/v1/`. The current code also exposes project-specific
+> spatial lookups (`service_requests/search`, `by_organization`) and `GET /users`;
+> reconciling these with the canonical contract is part of the overhaul.
+
+Cross-cutting (not started):
+
+* [ ]  Security — API auth (`X-API-Key` allowlist), rate limiting, TLS
+* [ ]  MongoDB X.509 certificate authentication
 * [ ]  Schema validation on XML messages
-* [ ]  GET Service List (xml and json)
-* [ ]  GET Service Definition (xml and json)
-* [ ]  POST Service Request (xml and json)
-* [ ]  GET Service Request Id (xml and json)
-* [ ]  GET Service Requests (xml and json)
-* [ ]  GET Service Request (xml and json)
+* [ ]  GeoJSON storage + `2dsphere` spatial index
+* [ ]  BSON tag / `_id` mapping fix across models (see [developer-reference §8](developer-reference.md#8-data-model--mongodb-mapping))
+* [ ]  External media server (Helsinki) — _localization deferred; English only_
+* [ ]  Inline `properties` (PSK 5970) passthrough
+* [ ]  NPS (Net Promoter Score) API integration as satisfaction data source
 
 ## What is the motivation for this?
 
@@ -74,7 +122,7 @@ open311-to-Go/
       handlers/     # HTTP handlers for business logic
       repository/   # MongoDB and repository interfaces
     pkg/
-      app/          # Application entry point (optional)
+      app/          # Legacy/alternate App setup — currently unused (live path is internal/api)
       httputil/     # HTTP utilities (params, response helpers)
       logger/       # Logging framework (syslog, file, stdout)
       middleware/   # HTTP middleware (logging, content-type)
