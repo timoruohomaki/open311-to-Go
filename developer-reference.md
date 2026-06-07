@@ -563,7 +563,7 @@ feedback is the same append-only shape, but lives in its own
 | Jurisdiction extras | `properties` extension | ✅ inline `properties` (JSON/XML/BSON); Boston mapped in [dictionaries/](dictionaries/boston-311.yaml) |
 | XML schema validation | required | not started |
 | BSON mapping | `_id` mapped, names consistent | ✅ fixed (persistence-DTO pattern) |
-| Storage / collections | regular collections + GeoJSON `2dsphere`, unique `service_request_id` (decided; not time-series) | no indexes defined yet |
+| Storage / collections | regular collections + GeoJSON `2dsphere`, unique `service_request_id` (decided; not time-series) | ✅ provisioned via `EnsureIndexes`; `open311-boston` backfilled with full Boston 311 export (~134k docs) |
 
 ---
 

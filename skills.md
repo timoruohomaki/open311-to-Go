@@ -18,6 +18,7 @@ with [developer-reference.md](developer-reference.md) (the API contract) and
 | [`src/internal/handlers/`](src/internal/handlers/) | HTTP handlers (`*_handler.go`) |
 | [`src/internal/repository/`](src/internal/repository/) | Mongo connection + per-entity repos |
 | [`src/pkg/`](src/pkg/) | Reusable: `router`, `middleware`, `logger`, `httputil`, `app` (unused) |
+| [`scripts/`](scripts/) | Operational tooling — [`feed-boston.ps1`](scripts/feed-boston.ps1) (Boston 311 CSV → API importer) |
 
 Module: `github.com/timoruohomaki/open311-to-Go` · Go **1.26.x** · net/http
 routing (1.22+).
@@ -145,6 +146,37 @@ defaults and requires only `MONGODB_URI`.
 6. Run `go test ./...` and `go vet ./...`.
 
 ---
+
+## Recipe: bulk-import Boston 311 data
+
+[`scripts/feed-boston.ps1`](scripts/feed-boston.ps1) maps a data.boston.gov 311
+CSV export (`case_enquiry_id, open_dt, closed_dt, case_status, type, latitude,
+longitude, geom_4326, …`) to Open311 JSON and feeds it via the API. Standard
+fields go top-level, jurisdiction extras under `properties`; coordinates are
+preserved when valid (Boston bbox) so the server derives the `2dsphere`
+`location`; Boston-local timestamps are converted to UTC (DST-aware); `&amp;`
+and similar are HTML-decoded; rows with no location or no `service_code` are
+skipped.
+
+```powershell
+$env:OPEN311_API_KEY = '<key>'
+# Preview the mapping without sending:
+./scripts/feed-boston.ps1 -CsvPath C:\path\boston.csv -First 3 -DryRun
+# Bulk backfill (fast path — chunks arrays to POST /requests/bulk):
+./scripts/feed-boston.ps1 -CsvPath C:\path\boston.csv -First 200000 -Bulk -BatchSize 500
+# Paced per-record PUT (use when rate limiting is ON; honors Retry-After):
+./scripts/feed-boston.ps1 -CsvPath C:\path\boston.csv -First 500 -DelaySeconds 6.5
+```
+
+Notes:
+- **Idempotent** — keyed on `service_request_id` (Boston Case ID), so re-running
+  updates in place. The full ~134k export loads in ~10 min via `-Bulk` (~266
+  rows/s) vs ~7.8 h sequentially.
+- **Rate limit:** the live API enforces ~10 req/min per client when
+  `RATE_LIMIT_RPM` is set. For a big backfill, set `RATE_LIMIT_RPM=0` on the
+  deployment, run `-Bulk`, then **restore it afterward**. The script also backs
+  off on `429` automatically.
+- The script holds **no secrets** — the key comes from `-ApiKey` / `$env:OPEN311_API_KEY`.
 
 ## MongoDB cert (X.509) auth — how it's wired
 
