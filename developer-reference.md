@@ -171,8 +171,21 @@ Returned only when the service's `metadata` is `true`.
 
 ## 4. POST Service Request
 
-`POST /requests.{format}` — requires API key. Body is
-`application/x-www-form-urlencoded; charset=utf-8`.
+`POST /requests.{format}` — requires API key.
+
+> **Implementation deviations from strict GeoReport** (intentional, consistent
+> with this JSON/XML-first API):
+> - **Body format:** we accept `application/json` or `application/xml`, *not*
+>   GeoReport's `application/x-www-form-urlencoded`.
+> - **Response envelope:** all responses are wrapped in this project's
+>   `{status, data}` (JSON) / `<response>` (XML) envelope rather than a bare
+>   Open311 document. Normalizing this is a tracked follow-up.
+> - **`service_request_id`:** assigned synchronously at creation (the new
+>   ObjectID hex), so responses always return `service_request_id` and never a
+>   `token`. Defaults applied on create: `status=open`, `requested_datetime`/
+>   `updated_datetime=now`.
+> - **Required on create:** `service_code` and a location (`lat`+`long`, or
+>   `address`, or `address_id`).
 
 | Param | Req? | Notes |
 |---|---|---|
@@ -334,8 +347,10 @@ Responses: `201` created, `400` invalid JSON, `422` validation failure.
 - A public **`/health`** endpoint (this project currently has none).
 - **Schema versioning** of payloads (`schema_version`) — apply the same to our
   `properties` / PSK 5970 extension.
-- Containerized **Docker + Nginx** deployment (vs. this project's stated Azure
-  Functions target — reconcile).
+- **Deployment / containerization is external:** handled by the **backend01**
+  devops project (same model as nps-api). This repo does not carry a Dockerfile
+  or compose; it just needs to build and read its env vars. Sentry provides
+  error + uptime monitoring (uptime checks can poll `GET /health`).
 
 > **Decided:** NPS is **purely a data source** for now — open311-to-Go does not
 > call or aggregate it directly. Revisit only if new needs arise.
@@ -433,11 +448,12 @@ feedback is the same append-only shape, but lives in its own
 
 | Area | Contract / target | Current code |
 |---|---|---|
-| Version prefix | `/open311/v2/` (decided) | `/api/v1/` |
+| Version prefix | `/open311/v2/` (decided) | ✅ migrated from `/api/v1/` |
 | Service list | `GET /services` | ✅ implemented |
-| Service definition | `GET /services/{code}` | ✅ (`{id}`, not `{service_code}`) |
+| Service definition | `GET /services/{code}` | ⚠️ uses `{id}` (Mongo `_id`), not `service_code` |
 | Service CRUD | not in Open311 (admin only) | `POST/PUT/DELETE /services` exist |
-| Service requests | `GET /requests`, `GET /requests/{id}`, `POST /requests`, `GET /tokens/{id}` | **none of these**; instead `GET /service_requests/search` and `/by_organization` (project-specific spatial lookups) |
+| Service requests | `GET /requests`, `GET /requests/{id}`, `POST /requests` | ✅ implemented (+ `/requests/search` & `/requests/by_organization` extensions) |
+| Tokens | `GET /tokens/{id}` | ⏭️ not implemented — ids assigned synchronously |
 | Users | not part of Open311 | `GET /users`, `GET /users/{id}`; CRUD commented out |
 | Auth | `X-API-Key` + allowlist + rate limit | ✅ `X-API-Key` on writes; rate limit pending |
 | Health check | `GET /health` (DB ping) | ✅ implemented |
@@ -451,8 +467,9 @@ feedback is the same append-only shape, but lives in its own
 
 - [x] BSON `_id` mapping fixed via persistence-DTO pattern in repositories
 - [ ] Normalize collection naming (`users` lowercase)
-- [ ] Implement the canonical request endpoints (`/requests`, `/requests/{id}`, `POST /requests`, `/tokens/{id}`)
-- [ ] Migrate route prefix `/api/v1` → `/open311/v2`
+- [x] Canonical request endpoints `GET /requests`, `GET /requests/{id}`, `POST /requests` (tokens skipped — synchronous ids)
+- [x] Migrate route prefix `/api/v1` → `/open311/v2`
+- [ ] Service definition lookup by `service_code` (currently by Mongo `_id`)
 - [x] `X-API-Key` auth on writes (`API_KEYS` allowlist) + public `GET /health` (DB ping)
 - [ ] Rate limiting (Boston: 10 req/min, `429` + `Retry-After`)
 - [ ] Provision indexes: unique `service_request_id`, `2dsphere` on GeoJSON `location`, secondary on `status`/`organizationId`/`featureId`/`*_datetime` (regular collections — see §8 Collection topology)

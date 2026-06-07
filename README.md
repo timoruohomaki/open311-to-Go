@@ -59,7 +59,7 @@ Reference docs: [Boston BOS:311](https://311.boston.gov/open311/docs) ·
 ## Development framework and versions
 
 * This work uses golang version 1.24.x [^1] (`go.mod` currently pins 1.24.1). The work depends on the new Go net/http routing capabilities so a version of 1.22 or newer is required.
-* The API will eventually be deployed as an Azure Function because it will then be easier to transfer to production platform. The dev server is Ubuntu 22.04 hosted at api.spatialworks.fi
+* Deployment and containerization are handled externally by the **backend01** devops project (same model as the sibling nps-api); this repo carries no Dockerfile. The dev server is Ubuntu 22.04 hosted at api.spatialworks.fi
 * The development is done using Visual Studio Code - however it shouldn't make any difference what editor to use
 * Sentry is used for telemetry (free version will be enough).
 * API examples and tests collection is managed with [Bruno](https://www.usebruno.com/)
@@ -74,26 +74,26 @@ Infrastructure (done):
 * [x]  MongoDB database backend
 * [x]  Content negotiation (JSON / XML) middleware
 
-Open311 GeoReport v2 endpoints (target contract — see [developer-reference.md](developer-reference.md)):
+Open311 GeoReport v2 endpoints (served under `/open311/v2/` — see [developer-reference.md](developer-reference.md)):
 
-* [ ]  GET Service List — `GET /services` _(partial: route exists)_
-* [ ]  GET Service Definition — `GET /services/{service_code}` _(partial: uses `{id}`)_
-* [ ]  POST Service Request — `POST /requests`
-* [ ]  GET Service Request by id — `GET /requests/{id}`
-* [ ]  GET Service Requests (list) — `GET /requests`
-* [ ]  GET service_request_id from token — `GET /tokens/{id}`
+* [x]  GET Service List — `GET /open311/v2/services`
+* [ ]  GET Service Definition — `GET /open311/v2/services/{id}` _(by Mongo `_id`; `service_code` lookup pending)_
+* [x]  POST Service Request — `POST /open311/v2/requests`
+* [x]  GET Service Request by id — `GET /open311/v2/requests/{id}`
+* [x]  GET Service Requests (list) — `GET /open311/v2/requests`
+* [ ]  GET service_request_id from token — _skipped; ids assigned synchronously_
 
-> Routes will be served under the `/open311/v2/` prefix (decided), migrating
-> from the current `/api/v1/`. The current code also exposes project-specific
-> spatial lookups (`service_requests/search`, `by_organization`) and `GET /users`;
-> reconciling these with the canonical contract is part of the overhaul.
+> Routes are served under `/open311/v2/` (migrated from `/api/v1/`). The project
+> also exposes spatial-lookup extensions (`/requests/search`,
+> `/requests/by_organization`) and `GET /users`. POST accepts JSON/XML (not
+> GeoReport form-urlencoded); see deviations in developer-reference.
 
 Cross-cutting (not started):
 
 * [x]  API auth — `X-API-Key` on writes (`API_KEYS` allowlist); reads public
 * [x]  `GET /health` — liveness + MongoDB connectivity (503 when DB unreachable)
 * [ ]  Rate limiting (10 req/min, `429` + `Retry-After`) and TLS termination
-* [x]  MongoDB X.509 certificate authentication (wired; see [config.example.json](src/config/config.example.json))
+* [x]  MongoDB X.509 certificate authentication (wired; see [.env.example](src/.env.example))
 * [ ]  Schema validation on XML messages
 * [ ]  GeoJSON storage + `2dsphere` spatial index
 * [x]  BSON tag / `_id` mapping fix (persistence-DTO pattern; see [developer-reference §8](developer-reference.md#8-data-model--mongodb-mapping))

@@ -63,24 +63,29 @@ func (a *API) registerRoutes(userHandler *handlers.UserHandler, serviceHandler *
 	a.router.Handle("GET", "/health", healthHandler.Health)
 
 	// User routes
-	a.router.Handle("GET", "/api/v1/users", userHandler.GetUsers)
-	a.router.Handle("GET", "/api/v1/users/", userHandler.GetUsers) // Trailing slash version
-	a.router.Handle("GET", "/api/v1/users/{id}", userHandler.GetUser)
-	// a.router.Handle("POST", "/api/v1/users", userHandler.CreateUser)
-	// a.router.Handle("PUT", "/api/v1/users/{id}", userHandler.UpdateUser)
-	// a.router.Handle("DELETE", "/api/v1/users/{id}", userHandler.DeleteUser)
+	a.router.Handle("GET", "/open311/v2/users", userHandler.GetUsers)
+	a.router.Handle("GET", "/open311/v2/users/", userHandler.GetUsers) // Trailing slash version
+	a.router.Handle("GET", "/open311/v2/users/{id}", userHandler.GetUser)
+	// a.router.Handle("POST", "/open311/v2/users", userHandler.CreateUser)
+	// a.router.Handle("PUT", "/open311/v2/users/{id}", userHandler.UpdateUser)
+	// a.router.Handle("DELETE", "/open311/v2/users/{id}", userHandler.DeleteUser)
 
-	// Service routes
-	a.router.Handle("GET", "/api/v1/services", serviceHandler.GetServices)
-	a.router.Handle("GET", "/api/v1/services/", serviceHandler.GetServices) // Trailing slash version
-	a.router.Handle("GET", "/api/v1/services/{id}", serviceHandler.GetService)
-	a.router.Handle("POST", "/api/v1/services", serviceHandler.CreateService)
-	a.router.Handle("PUT", "/api/v1/services/{id}", serviceHandler.UpdateService)
-	a.router.Handle("DELETE", "/api/v1/services/{id}", serviceHandler.DeleteService)
+	// Service routes (Open311 service list & definition)
+	a.router.Handle("GET", "/open311/v2/services", serviceHandler.GetServices)
+	a.router.Handle("GET", "/open311/v2/services/", serviceHandler.GetServices) // Trailing slash version
+	a.router.Handle("GET", "/open311/v2/services/{id}", serviceHandler.GetService)
+	a.router.Handle("POST", "/open311/v2/services", serviceHandler.CreateService)
+	a.router.Handle("PUT", "/open311/v2/services/{id}", serviceHandler.UpdateService)
+	a.router.Handle("DELETE", "/open311/v2/services/{id}", serviceHandler.DeleteService)
 
-	// Service Request routes
-	a.router.Handle("GET", "/api/v1/service_requests/search", serviceRequestHandler.SearchServiceRequestsByFeature)
-	a.router.Handle("GET", "/api/v1/service_requests/by_organization", serviceRequestHandler.SearchServiceRequestsByOrganization)
+	// Service Request routes (Open311 GeoReport v2).
+	// Register the specific sub-paths before the {id} wildcard so they win.
+	a.router.Handle("GET", "/open311/v2/requests/search", serviceRequestHandler.SearchServiceRequestsByFeature)
+	a.router.Handle("GET", "/open311/v2/requests/by_organization", serviceRequestHandler.SearchServiceRequestsByOrganization)
+	a.router.Handle("GET", "/open311/v2/requests", serviceRequestHandler.GetServiceRequests)
+	a.router.Handle("GET", "/open311/v2/requests/", serviceRequestHandler.GetServiceRequests) // Trailing slash version
+	a.router.Handle("POST", "/open311/v2/requests", serviceRequestHandler.CreateServiceRequest)
+	a.router.Handle("GET", "/open311/v2/requests/{id}", serviceRequestHandler.GetServiceRequest)
 }
 
 // Handler returns the HTTP handler for the API
