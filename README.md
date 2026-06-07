@@ -79,6 +79,7 @@ Open311 GeoReport v2 endpoints (served under `/open311/v2/` — see [developer-r
 * [x]  GET Service List — `GET /open311/v2/services`
 * [ ]  GET Service Definition — `GET /open311/v2/services/{id}` _(by Mongo `_id`; `service_code` lookup pending)_
 * [x]  POST Service Request — `POST /open311/v2/requests`
+* [x]  PUT Service Request (idempotent upsert) — `PUT /open311/v2/requests/{id}` _(project extension; re-runnable bulk feeds)_
 * [x]  GET Service Request by id — `GET /open311/v2/requests/{id}`
 * [x]  GET Service Requests (list) — `GET /open311/v2/requests`
 * [ ]  GET service_request_id from token — _skipped; ids assigned synchronously_

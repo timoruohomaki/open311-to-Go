@@ -50,6 +50,23 @@ func (m *mockServiceRequestRepo) Create(ctx context.Context, req models.ServiceR
 	return req, nil
 }
 
+func (m *mockServiceRequestRepo) Upsert(ctx context.Context, req models.ServiceRequest) (models.ServiceRequest, bool, error) {
+	if req.ServiceRequestID == "" {
+		return models.ServiceRequest{}, false, repository.ErrInvalidID
+	}
+	if req.Status == "" {
+		req.Status = "open"
+	}
+	for i, existing := range m.data {
+		if existing.ServiceRequestID == req.ServiceRequestID {
+			m.data[i] = req
+			return req, false, nil
+		}
+	}
+	m.data = append(m.data, req)
+	return req, true, nil
+}
+
 func (m *mockServiceRequestRepo) FindByFeature(ctx context.Context, featureID, featureGuid string) ([]models.ServiceRequest, error) {
 	var results []models.ServiceRequest
 	for _, req := range m.data {
@@ -224,6 +241,54 @@ func TestCreateServiceRequest(t *testing.T) {
 	t.Run("missing location", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		handler.CreateServiceRequest(w, jsonReq(`{"service_code":"POTHOLE"}`))
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+}
+
+func TestUpsertServiceRequest(t *testing.T) {
+	jsonPut := func(repo *mockServiceRequestRepo, id, body string) *httptest.ResponseRecorder {
+		handler := NewServiceRequestHandler(nil, repo)
+		r := httptest.NewRequest(http.MethodPut, "/open311/v2/requests/"+id, strings.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+		r = withPathParam(r, "id", id)
+		w := httptest.NewRecorder()
+		handler.UpsertServiceRequest(w, r)
+		return w
+	}
+
+	t.Run("creates when absent -> 201", func(t *testing.T) {
+		repo := &mockServiceRequestRepo{}
+		w := jsonPut(repo, "sr-1", `{"service_code":"POTHOLE","lat":42.36,"long":-71.05}`)
+		assert.Equal(t, http.StatusCreated, w.Code)
+		assert.Len(t, repo.data, 1)
+		assert.Equal(t, "sr-1", repo.data[0].ServiceRequestID)
+	})
+
+	t.Run("updates when present -> 200", func(t *testing.T) {
+		repo := &mockServiceRequestRepo{
+			data: []models.ServiceRequest{{ServiceRequestID: "sr-1", ServiceCode: "OLD", Status: "open"}},
+		}
+		w := jsonPut(repo, "sr-1", `{"service_code":"POTHOLE","status":"closed","lat":42.36,"long":-71.05}`)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Len(t, repo.data, 1)
+		assert.Equal(t, "closed", repo.data[0].Status)
+		assert.Equal(t, "POTHOLE", repo.data[0].ServiceCode)
+	})
+
+	t.Run("url id overrides body id", func(t *testing.T) {
+		repo := &mockServiceRequestRepo{}
+		w := jsonPut(repo, "sr-url", `{"service_request_id":"sr-body","service_code":"POTHOLE","address":"1 City Hall Sq"}`)
+		assert.Equal(t, http.StatusCreated, w.Code)
+		assert.Equal(t, "sr-url", repo.data[0].ServiceRequestID)
+	})
+
+	t.Run("missing service_code -> 400", func(t *testing.T) {
+		w := jsonPut(&mockServiceRequestRepo{}, "sr-1", `{"lat":42.36,"long":-71.05}`)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("missing location -> 400", func(t *testing.T) {
+		w := jsonPut(&mockServiceRequestRepo{}, "sr-1", `{"service_code":"POTHOLE"}`)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 }

@@ -127,6 +127,58 @@ func (h *ServiceRequestHandler) CreateServiceRequest(w http.ResponseWriter, r *h
 	h.sendServiceRequests(w, r, []models.ServiceRequest{created}, http.StatusCreated)
 }
 
+// UpsertServiceRequest handles PUT /open311/v2/requests/{id} where id is the
+// service_request_id. It inserts the request if absent or fully replaces it if
+// present (idempotent), making bulk feeds re-runnable. Unlike POST, a supplied
+// updated_datetime is preserved (defaulting to now only when absent), so the
+// source's own update/close timestamps survive. The URL id is authoritative and
+// overrides any service_request_id in the body. Returns 201 when created, 200
+// when an existing request was updated. Accepts JSON or XML.
+func (h *ServiceRequestHandler) UpsertServiceRequest(w http.ResponseWriter, r *http.Request) {
+	id := httputil.GetPathParam(r, "id")
+	if id == "" {
+		h.SendError(w, r, http.StatusBadRequest, "Missing service_request_id")
+		return
+	}
+
+	var req models.ServiceRequest
+	if err := h.DecodeRequest(r, &req); err != nil {
+		h.SendError(w, r, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	// The URL is the source of truth for the natural key.
+	req.ServiceRequestID = id
+
+	if req.ServiceCode == "" {
+		h.SendError(w, r, http.StatusBadRequest, "service_code is required")
+		return
+	}
+	// Location is required: lat+long, or address, or address_id.
+	hasLatLong := req.Latitude != 0 && req.Longitude != 0
+	if !hasLatLong && req.Address == "" && req.AddressID == "" {
+		h.SendError(w, r, http.StatusBadRequest, "a location is required: provide lat and long, address, or address_id")
+		return
+	}
+
+	stored, created, err := h.repo.Upsert(r.Context(), req)
+	if err != nil {
+		switch {
+		case errors.Is(err, repository.ErrInvalidID):
+			h.SendError(w, r, http.StatusBadRequest, "Missing service_request_id")
+		default:
+			h.log.Errorf("Failed to upsert service request: %v", err)
+			h.SendError(w, r, http.StatusInternalServerError, "Failed to upsert service request")
+		}
+		return
+	}
+
+	code := http.StatusOK
+	if created {
+		code = http.StatusCreated
+	}
+	h.sendServiceRequests(w, r, []models.ServiceRequest{stored}, code)
+}
+
 // SearchServiceRequestsByFeature handles GET /open311/v2/requests/search?featureId=...&featureGuid=...
 func (h *ServiceRequestHandler) SearchServiceRequestsByFeature(w http.ResponseWriter, r *http.Request) {
 	featureId := r.URL.Query().Get("featureId")

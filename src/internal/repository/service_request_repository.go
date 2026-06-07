@@ -38,6 +38,7 @@ type ServiceRequestRepository interface {
 	Find(ctx context.Context, q ServiceRequestQuery) ([]models.ServiceRequest, error)
 	FindByServiceRequestID(ctx context.Context, serviceRequestID string) (models.ServiceRequest, error)
 	Create(ctx context.Context, req models.ServiceRequest) (models.ServiceRequest, error)
+	Upsert(ctx context.Context, req models.ServiceRequest) (models.ServiceRequest, bool, error)
 	FindByFeature(ctx context.Context, featureID, featureGuid string) ([]models.ServiceRequest, error)
 	FindByOrganization(ctx context.Context, organizationID string) ([]models.ServiceRequest, error)
 }
@@ -273,6 +274,51 @@ func (r *MongoServiceRequestRepository) Create(ctx context.Context, req models.S
 
 	req.ID = oid.Hex()
 	return req, nil
+}
+
+// Upsert inserts or fully replaces the service request identified by
+// req.ServiceRequestID (the natural key), keeping the existing MongoDB _id on
+// replace. Unlike Create, it preserves a supplied updated_datetime — defaulting
+// it to now only when absent — so a re-runnable bulk feed can carry the source's
+// own update/close timestamps without losing history. Status defaults to "open"
+// and requested_datetime to now when absent. Returns the stored request and
+// whether it was newly created (true) versus updated (false).
+func (r *MongoServiceRequestRepository) Upsert(ctx context.Context, req models.ServiceRequest) (models.ServiceRequest, bool, error) {
+	if req.ServiceRequestID == "" {
+		return models.ServiceRequest{}, false, ErrInvalidID
+	}
+	now := time.Now().UTC()
+
+	if req.Status == "" {
+		req.Status = "open"
+	}
+	if req.RequestedDatetime.IsZero() {
+		req.RequestedDatetime = now
+	}
+	if req.UpdatedDatetime.IsZero() {
+		req.UpdatedDatetime = now
+	}
+
+	doc := serviceRequestDocFromModel(req)
+	// Let MongoDB own _id: preserved on replace, generated on insert. The body
+	// carries no ObjectID (the URL key is service_request_id, not _id).
+	doc.ID = primitive.ObjectID{}
+
+	filter := bson.M{"service_request_id": req.ServiceRequestID}
+	res, err := r.collection.ReplaceOne(ctx, filter, doc, options.Replace().SetUpsert(true))
+	if err != nil {
+		return models.ServiceRequest{}, false, fmt.Errorf("%w: %v", ErrDatabase, err)
+	}
+
+	created := res.UpsertedCount > 0
+
+	// Read back the canonical stored document so the response carries the real
+	// _id and the timestamps exactly as persisted.
+	stored, err := r.FindByServiceRequestID(ctx, req.ServiceRequestID)
+	if err != nil {
+		return models.ServiceRequest{}, false, err
+	}
+	return stored, created, nil
 }
 
 func (r *MongoServiceRequestRepository) FindByFeature(ctx context.Context, featureID, featureGuid string) ([]models.ServiceRequest, error) {

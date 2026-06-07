@@ -222,6 +222,33 @@ If the backend assigns ids asynchronously, it returns a `token` instead of a
 
 ---
 
+## 4a. PUT Service Request (upsert) — project extension
+
+`PUT /requests/{service_request_id}.{format}` — requires API key.
+
+Not part of GeoReport v2. Added for **idempotent, re-runnable bulk feeds** (e.g.
+importing a periodic Boston 311 dump): inserts the request if absent, fully
+**replaces** it if present, keyed on `service_request_id`. The existing MongoDB
+`_id` is preserved on replace.
+
+> **Semantics:**
+> - **Body format:** `application/json` or `application/xml` (same as POST).
+> - **Key:** the `{service_request_id}` in the URL is authoritative and overrides
+>   any `service_request_id` in the body.
+> - **Required:** same as POST — `service_code` and a location (`lat`+`long`, or
+>   `address`, or `address_id`).
+> - **`updated_datetime`:** **preserved when supplied** (defaults to now only when
+>   absent) — this is the key difference from POST, which always stamps now. Lets
+>   a feed carry the source's own update/close timestamps. `status` defaults to
+>   `open` and `requested_datetime` to now when absent.
+> - **Replace, not patch:** the body is the full resource; omitted fields are not
+>   merged from the existing document.
+> - **Status codes:** `201 Created` when newly created, `200 OK` when an existing
+>   request was updated. Body is the stored request (as a single-element list,
+>   like the other request endpoints).
+
+---
+
 ## 5. GET Service Requests
 
 **Single:** `GET /requests/{service_request_id}.{format}`
@@ -479,7 +506,7 @@ feedback is the same append-only shape, but lives in its own
 | Service list | `GET /services` | ✅ implemented |
 | Service definition | `GET /services/{code}` | ⚠️ uses `{id}` (Mongo `_id`), not `service_code` |
 | Service CRUD | not in Open311 (admin only) | `POST/PUT/DELETE /services` exist |
-| Service requests | `GET /requests`, `GET /requests/{id}`, `POST /requests` | ✅ implemented (+ `/requests/search` & `/requests/by_organization` extensions) |
+| Service requests | `GET /requests`, `GET /requests/{id}`, `POST /requests` | ✅ implemented (+ `PUT /requests/{id}` idempotent upsert, `/requests/search` & `/requests/by_organization` extensions) |
 | Tokens | `GET /tokens/{id}` | ⏭️ not implemented — ids assigned synchronously |
 | Users | not part of Open311 | `GET /users`, `GET /users/{id}`; CRUD commented out |
 | Auth | `X-API-Key` + allowlist | ✅ `X-API-Key` on writes |
@@ -498,6 +525,7 @@ feedback is the same append-only shape, but lives in its own
 - [x] BSON `_id` mapping fixed via persistence-DTO pattern in repositories
 - [ ] Normalize collection naming (`users` lowercase)
 - [x] Canonical request endpoints `GET /requests`, `GET /requests/{id}`, `POST /requests` (tokens skipped — synchronous ids)
+- [x] Idempotent `PUT /requests/{id}` upsert (re-runnable bulk feeds; preserves supplied `updated_datetime`)
 - [x] Migrate route prefix `/api/v1` → `/open311/v2`
 - [ ] Service definition lookup by `service_code` (currently by Mongo `_id`)
 - [x] `X-API-Key` auth on writes (`API_KEYS` allowlist) + public `GET /health` (DB ping)
