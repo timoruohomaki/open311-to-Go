@@ -121,6 +121,14 @@ func (db *MongoDB) Disconnect() error {
 	return nil
 }
 
+// Ping verifies the MongoDB connection is alive.
+func (db *MongoDB) Ping(ctx context.Context) error {
+	if db.client == nil {
+		return fmt.Errorf("mongodb client is not initialized")
+	}
+	return db.client.Ping(ctx, readpref.Primary())
+}
+
 // GetCollection returns a MongoDB collection
 func (db *MongoDB) GetCollection(name string) *mongo.Collection {
 	return db.database.Collection(name)

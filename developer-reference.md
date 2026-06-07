@@ -51,8 +51,16 @@ spec compatibility.
   or `api_key` query/form param. We may *additionally* accept `api_key` for
   Open311 client compatibility, but `X-API-Key` is our primary scheme.
 - Read endpoints (service list/definition, request lookup) and `/health` are
-  public. `POST /requests` (and any future writes) require a key.
-- _(drift)_ This project currently implements **no** API authentication.
+  public. Writes (`POST`/`PUT`/`PATCH`/`DELETE`) require a valid key.
+- **Implemented** as `middleware.APIKeyMiddleware` (allowlist from the `API_KEYS`
+  env var). If `API_KEYS` is empty, write auth is disabled and the server logs a
+  warning at startup.
+
+### Health check
+`GET /health` (public) pings MongoDB and returns `200`
+`{"status":"healthy","database":"ok",...}` when reachable, or `503`
+`{"status":"unhealthy","database":"unreachable"}` otherwise — suitable for load
+balancer / container liveness probes and for confirming DB connectivity.
 
 ### Rate limiting (Boston)
 - Default **10 requests/minute**; request an application key for more.
@@ -431,7 +439,8 @@ feedback is the same append-only shape, but lives in its own
 | Service CRUD | not in Open311 (admin only) | `POST/PUT/DELETE /services` exist |
 | Service requests | `GET /requests`, `GET /requests/{id}`, `POST /requests`, `GET /tokens/{id}` | **none of these**; instead `GET /service_requests/search` and `/by_organization` (project-specific spatial lookups) |
 | Users | not part of Open311 | `GET /users`, `GET /users/{id}`; CRUD commented out |
-| Auth | `X-API-Key` + allowlist + rate limit | none |
+| Auth | `X-API-Key` + allowlist + rate limit | ✅ `X-API-Key` on writes; rate limit pending |
+| Health check | `GET /health` (DB ping) | ✅ implemented |
 | XML schema validation | required | not started |
 | BSON mapping | `_id` mapped, names consistent | ✅ fixed (persistence-DTO pattern) |
 | Storage / collections | regular collections + GeoJSON `2dsphere`, unique `service_request_id` (decided; not time-series) | no indexes defined yet |
@@ -444,7 +453,8 @@ feedback is the same append-only shape, but lives in its own
 - [ ] Normalize collection naming (`users` lowercase)
 - [ ] Implement the canonical request endpoints (`/requests`, `/requests/{id}`, `POST /requests`, `/tokens/{id}`)
 - [ ] Migrate route prefix `/api/v1` → `/open311/v2`
-- [ ] API authentication (`X-API-Key` + `API_KEYS` allowlist) and rate limiting
+- [x] `X-API-Key` auth on writes (`API_KEYS` allowlist) + public `GET /health` (DB ping)
+- [ ] Rate limiting (Boston: 10 req/min, `429` + `Retry-After`)
 - [ ] Provision indexes: unique `service_request_id`, `2dsphere` on GeoJSON `location`, secondary on `status`/`organizationId`/`featureId`/`*_datetime` (regular collections — see §8 Collection topology)
 - [ ] XML schema validation
 - [ ] External-media (Helsinki) support — _localization deferred; English only_

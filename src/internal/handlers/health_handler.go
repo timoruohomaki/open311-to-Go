@@ -1,0 +1,47 @@
+package handlers
+
+import (
+	"context"
+	"net/http"
+	"time"
+
+	"github.com/timoruohomaki/open311-to-Go/internal/repository"
+	"github.com/timoruohomaki/open311-to-Go/pkg/logger"
+)
+
+// HealthHandler reports service liveness and MongoDB connectivity.
+type HealthHandler struct {
+	BaseHandler
+	db *repository.MongoDB
+}
+
+// NewHealthHandler creates a new HealthHandler.
+func NewHealthHandler(log logger.Logger, db *repository.MongoDB) *HealthHandler {
+	return &HealthHandler{
+		BaseHandler: BaseHandler{log: log},
+		db:          db,
+	}
+}
+
+// Health handles GET /health. It pings MongoDB and returns 200 when reachable,
+// 503 otherwise, so it doubles as a connectivity check for load balancers.
+func (h *HealthHandler) Health(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+
+	status := map[string]string{
+		"status":    "healthy",
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	}
+
+	if err := h.db.Ping(ctx); err != nil {
+		h.log.Errorf("health check: MongoDB ping failed: %v", err)
+		status["status"] = "unhealthy"
+		status["database"] = "unreachable"
+		h.SendResponse(w, r, http.StatusServiceUnavailable, status)
+		return
+	}
+
+	status["database"] = "ok"
+	h.SendResponse(w, r, http.StatusOK, status)
+}

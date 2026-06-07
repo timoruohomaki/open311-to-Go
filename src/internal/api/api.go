@@ -24,9 +24,14 @@ func New(cfg *config.Config, log logger.Logger, accessLog logger.Logger, db *rep
 	// Create router
 	r := router.New()
 
-	// Add middleware
+	// Add middleware (outermost first): access log -> API key -> content type
 	r.Use(middleware.LoggingMiddleware(accessLog))
+	r.Use(middleware.APIKeyMiddleware(cfg.Auth.APIKeys))
 	r.Use(middleware.ContentTypeMiddleware)
+
+	if len(cfg.Auth.APIKeys) == 0 {
+		log.Warnf("API_KEYS is not set; write endpoints (POST/PUT/DELETE) are unauthenticated")
+	}
 
 	// Initialize repositories
 	userRepo := repository.NewMongoUserRepository(db)
@@ -37,6 +42,7 @@ func New(cfg *config.Config, log logger.Logger, accessLog logger.Logger, db *rep
 	userHandler := handlers.NewUserHandler(log, userRepo)
 	serviceHandler := handlers.NewServiceHandler(log, serviceRepo)
 	serviceRequestHandler := handlers.NewServiceRequestHandler(log, serviceRequestRepo)
+	healthHandler := handlers.NewHealthHandler(log, db)
 
 	api := &API{
 		router:       r,
@@ -46,13 +52,16 @@ func New(cfg *config.Config, log logger.Logger, accessLog logger.Logger, db *rep
 	}
 
 	// Register routes
-	api.registerRoutes(userHandler, serviceHandler, serviceRequestHandler)
+	api.registerRoutes(userHandler, serviceHandler, serviceRequestHandler, healthHandler)
 
 	return api
 }
 
 // registerRoutes sets up all API routes
-func (a *API) registerRoutes(userHandler *handlers.UserHandler, serviceHandler *handlers.ServiceHandler, serviceRequestHandler *handlers.ServiceRequestHandler) {
+func (a *API) registerRoutes(userHandler *handlers.UserHandler, serviceHandler *handlers.ServiceHandler, serviceRequestHandler *handlers.ServiceRequestHandler, healthHandler *handlers.HealthHandler) {
+	// Health check (public, used for liveness + MongoDB connectivity)
+	a.router.Handle("GET", "/health", healthHandler.Health)
+
 	// User routes
 	a.router.Handle("GET", "/api/v1/users", userHandler.GetUsers)
 	a.router.Handle("GET", "/api/v1/users/", userHandler.GetUsers) // Trailing slash version

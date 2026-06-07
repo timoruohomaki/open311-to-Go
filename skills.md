@@ -73,6 +73,10 @@ defaults and requires only `MONGODB_URI`.
   wrapper type (`models.Users{Items: ...}`) when `Accept` is XML.
 - **Context:** pass the request context (`r.Context()`) down. See the timeout
   gotcha below.
+- **Auth:** writes (`POST`/`PUT`/`PATCH`/`DELETE`) require a valid `X-API-Key`
+  via `middleware.APIKeyMiddleware` (allowlist from `API_KEYS`); reads and
+  `GET /health` are public. Empty `API_KEYS` disables write auth (dev) + warns.
+- **Health:** `GET /health` pings MongoDB (`200` healthy / `503` unhealthy).
 
 ---
 

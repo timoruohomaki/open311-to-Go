@@ -53,6 +53,11 @@ type Config struct {
 		TracesSampleRate float64
 		SendDefaultPII   bool
 	}
+	Auth struct {
+		// APIKeys is the allowlist of valid X-API-Key values (from API_KEYS,
+		// comma-separated). Empty disables write authentication.
+		APIKeys []string
+	}
 }
 
 // Load builds the configuration from environment variables, applying sensible
@@ -89,6 +94,8 @@ func Load() (*Config, error) {
 	cfg.Sentry.EnableTracing = getEnvBool("SENTRY_ENABLE_TRACING", false)
 	cfg.Sentry.TracesSampleRate = getEnvFloat("SENTRY_TRACES_SAMPLE_RATE", 0.0)
 	cfg.Sentry.SendDefaultPII = getEnvBool("SENTRY_SEND_DEFAULT_PII", false)
+
+	cfg.Auth.APIKeys = splitAndTrim(getEnv("API_KEYS", ""))
 
 	if cfg.MongoDB.URI == "" {
 		return nil, fmt.Errorf("MONGODB_URI is required")
@@ -130,6 +137,22 @@ func LoadDotEnv(path string) error {
 		}
 	}
 	return scanner.Err()
+}
+
+// splitAndTrim splits a comma-separated string into a slice, trimming whitespace
+// and dropping empty entries. Returns nil for an empty input.
+func splitAndTrim(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func getEnv(key, def string) string {
