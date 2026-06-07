@@ -73,10 +73,15 @@ gofmt -l .
 
 ## Known gotchas (read before editing)
 
-1. **BSON tags are mandatory.** Without a `bson` tag the driver lowercases the
-   whole field name, so `ID`↛`_id` and camelCase `$set` keys silently miss. Every
-   persisted field needs an explicit `bson` tag; ids should be
-   `primitive.ObjectID` with `bson:"_id,omitempty"`. See
+1. **Persistence-DTO pattern (do not put `bson`/`ObjectID` in domain models).**
+   Domain models (`models.*`) are pure JSON/XML DTOs with a **string** `ID`.
+   Each repository defines a private `*Doc` struct that holds the `bson` tags +
+   `primitive.ObjectID` `_id` and converts via `toModel()` / inline build on
+   insert. New persisted fields go on the `*Doc` (mirror the json tag name), and
+   `$set` keys / query filters must use those bson names. Nested types embedded
+   in a `*Doc` (`UserOrganizationLink`, `ServiceAttribute`) also need `bson`
+   tags. Rationale: without a `bson` tag the driver lowercases the whole field
+   name, so `ID`↛`_id` and camelCase `$set` keys silently miss. See
    [developer-reference §8](developer-reference.md#8-data-model--mongodb-mapping).
 2. **Operation timeout is dropped.** Repos do
    `opCtx, cancel := r.db.GetContext(); if ctx != nil { opCtx = ctx }`, so the

@@ -343,21 +343,34 @@ Go models live in [`src/domain/models/`](src/domain/models/). MongoDB collection
 | `services` | `Service` | lowercase |
 | `Users` | `User` | **PascalCase — inconsistent**, normalize during overhaul |
 
-### ⚠️ BSON tag rule (critical)
+### BSON mapping — persistence-DTO pattern (implemented)
 The Mongo driver, **absent a `bson` tag, lowercases the entire Go field name**
-(`FirstName` → `firstname`, `ID` → `id`). The models currently rely on `json`
-tags that do **not** apply to BSON, which causes:
-- `ID` never maps to Mongo's `_id` (responses return empty ids),
-- `Update` `$set` writing camelCase keys that reads never see.
+(`FirstName` → `firstname`, `ID` → `id`). The original models relied on `json`
+tags that do **not** apply to BSON, which caused: `ID` never mapping to Mongo's
+`_id` (empty ids in responses) and `Update` `$set` writing camelCase keys that
+reads never saw.
 
-**Rule going forward:** every persisted struct field gets an explicit `bson`
-tag, and ids use `primitive.ObjectID`:
+**How it's fixed:** persistence is separated from transport. Each repository
+defines a private `*Doc` struct that carries the `bson` tags and an
+`primitive.ObjectID` `_id`, and converts to/from the domain model. The domain
+models (`models.User`, `models.Service`, `models.ServiceRequest`) stay pure
+JSON/XML DTOs with a **string** `ID` — handlers, tests, and the API contract are
+untouched, and BSON/ObjectID concerns never leak out of the repository layer.
+
 ```go
-ID             primitive.ObjectID `json:"id"             bson:"_id,omitempty"`
-FirstName      string             `json:"firstName"      bson:"firstName"`
-OrganizationID string             `json:"organizationId" bson:"organizationId"`
+// in the repository package
+type userDoc struct {
+    ID        primitive.ObjectID `bson:"_id,omitempty"` // omitempty ⇒ Mongo generates on insert
+    Email     string             `bson:"email"`
+    FirstName string             `bson:"firstName"`
+    // ...
+}
+func (d userDoc) toModel() models.User { /* d.ID.Hex() → model.ID */ }
 ```
-Then align repository `$set` keys and query filters to the **bson** names.
+Rules: `bson` tags mirror the model's `json` tags; `$set` keys and query filters
+use those same `bson` names; nested types embedded in a `*Doc` (e.g.
+`UserOrganizationLink`, `ServiceAttribute`) carry `bson` tags too. The
+`service_requests` filters use `featureId` / `featureGuid` / `organizationId`.
 
 ### Spatial storage
 Store geometry as **GeoJSON** in MongoDB and add a `2dsphere` index to support
@@ -379,13 +392,13 @@ coordinates in WGS84; the Open311 `lat`/`long` fields map to GeoJSON
 | Users | not part of Open311 | `GET /users`, `GET /users/{id}`; CRUD commented out |
 | Auth | `X-API-Key` + allowlist + rate limit | none |
 | XML schema validation | required | not started |
-| BSON tags | explicit, `_id` mapped | missing → data bugs |
+| BSON mapping | `_id` mapped, names consistent | ✅ fixed (persistence-DTO pattern) |
 
 ---
 
 ## 10. Overhaul checklist (high level)
 
-- [ ] Add explicit `bson` tags + `primitive.ObjectID` ids across all models
+- [x] BSON `_id` mapping fixed via persistence-DTO pattern in repositories
 - [ ] Normalize collection naming (`users` lowercase)
 - [ ] Implement the canonical request endpoints (`/requests`, `/requests/{id}`, `POST /requests`, `/tokens/{id}`)
 - [ ] Migrate route prefix `/api/v1` → `/open311/v2`

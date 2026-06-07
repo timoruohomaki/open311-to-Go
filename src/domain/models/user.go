@@ -55,6 +55,6 @@ type Users struct {
 // UserOrganizationLink represents the relationship between a user and an organization
 // Role: the user's role in the organization (see Role)
 type UserOrganizationLink struct {
-	OrganizationID string `json:"organizationId"`
-	Role           Role   `json:"role"`
+	OrganizationID string `json:"organizationId" bson:"organizationId"`
+	Role           Role   `json:"role" bson:"role"`
 }

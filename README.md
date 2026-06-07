@@ -94,7 +94,7 @@ Cross-cutting (not started):
 * [ ]  MongoDB X.509 certificate authentication
 * [ ]  Schema validation on XML messages
 * [ ]  GeoJSON storage + `2dsphere` spatial index
-* [ ]  BSON tag / `_id` mapping fix across models (see [developer-reference §8](developer-reference.md#8-data-model--mongodb-mapping))
+* [x]  BSON tag / `_id` mapping fix (persistence-DTO pattern; see [developer-reference §8](developer-reference.md#8-data-model--mongodb-mapping))
 * [ ]  External media server (Helsinki) — _localization deferred; English only_
 * [ ]  Inline `properties` (PSK 5970) passthrough
 * [ ]  NPS (Net Promoter Score) API integration as satisfaction data source

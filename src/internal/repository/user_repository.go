@@ -13,6 +13,41 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// userDoc is the persistence representation of a User. It carries the BSON tags
+// and the ObjectID `_id`; the domain model (models.User) stays free of storage
+// concerns and exposes the id as a hex string. Convert with toModel/fromModel.
+type userDoc struct {
+	ID            primitive.ObjectID            `bson:"_id,omitempty"`
+	Email         string                        `bson:"email"`
+	FirstName     string                        `bson:"firstName"`
+	LastName      string                        `bson:"lastName"`
+	Phone         string                        `bson:"phone,omitempty"`
+	Organization  string                        `bson:"organization,omitempty"`
+	OrgType       models.OrgType                `bson:"orgType,omitempty"`
+	Organizations []models.UserOrganizationLink `bson:"organizations,omitempty"`
+	CreatedAt     time.Time                     `bson:"createdAt"`
+	UpdatedAt     time.Time                     `bson:"updatedAt"`
+}
+
+func (d userDoc) toModel() models.User {
+	id := ""
+	if !d.ID.IsZero() {
+		id = d.ID.Hex()
+	}
+	return models.User{
+		ID:            id,
+		Email:         d.Email,
+		FirstName:     d.FirstName,
+		LastName:      d.LastName,
+		Phone:         d.Phone,
+		Organization:  d.Organization,
+		OrgType:       d.OrgType,
+		Organizations: d.Organizations,
+		CreatedAt:     d.CreatedAt,
+		UpdatedAt:     d.UpdatedAt,
+	}
+}
+
 // MongoUserRepository implements UserRepository interface using MongoDB
 type MongoUserRepository struct {
 	db         *MongoDB
@@ -46,9 +81,14 @@ func (r *MongoUserRepository) FindAll(ctx context.Context) ([]models.User, error
 	defer cursor.Close(opCtx)
 
 	// Decode users
-	var users []models.User
-	if err := cursor.All(opCtx, &users); err != nil {
+	var docs []userDoc
+	if err := cursor.All(opCtx, &docs); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrDatabase, err)
+	}
+
+	users := make([]models.User, 0, len(docs))
+	for _, d := range docs {
+		users = append(users, d.toModel())
 	}
 
 	return users, nil
@@ -72,8 +112,8 @@ func (r *MongoUserRepository) FindByID(ctx context.Context, id string) (models.U
 	}
 
 	// Find user by ID
-	var user models.User
-	err = r.collection.FindOne(opCtx, bson.M{"_id": objectID}).Decode(&user)
+	var doc userDoc
+	err = r.collection.FindOne(opCtx, bson.M{"_id": objectID}).Decode(&doc)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return models.User{}, ErrNotFound
@@ -81,7 +121,7 @@ func (r *MongoUserRepository) FindByID(ctx context.Context, id string) (models.U
 		return models.User{}, fmt.Errorf("%w: %v", ErrDatabase, err)
 	}
 
-	return user, nil
+	return doc.toModel(), nil
 }
 
 // Create adds a new user to the database
@@ -100,14 +140,27 @@ func (r *MongoUserRepository) Create(ctx context.Context, user models.User) (mod
 	user.CreatedAt = now
 	user.UpdatedAt = now
 
-	// Insert user
-	result, err := r.collection.InsertOne(opCtx, user)
+	// Insert user. Leave _id unset (omitempty) so MongoDB generates the ObjectID.
+	doc := userDoc{
+		Email:         user.Email,
+		FirstName:     user.FirstName,
+		LastName:      user.LastName,
+		Phone:         user.Phone,
+		Organization:  user.Organization,
+		OrgType:       user.OrgType,
+		Organizations: user.Organizations,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	result, err := r.collection.InsertOne(opCtx, doc)
 	if err != nil {
 		return models.User{}, fmt.Errorf("%w: %v", ErrDatabase, err)
 	}
 
-	// Set ID
-	user.ID = result.InsertedID.(primitive.ObjectID).Hex()
+	// Set ID from the generated ObjectID
+	if oid, ok := result.InsertedID.(primitive.ObjectID); ok {
+		user.ID = oid.Hex()
+	}
 
 	return user, nil
 }
@@ -132,13 +185,16 @@ func (r *MongoUserRepository) Update(ctx context.Context, user models.User) (mod
 	// Set update timestamp
 	user.UpdatedAt = time.Now()
 
-	// Update user
+	// Update user. Field names match the userDoc BSON tags.
 	update := bson.M{
 		"$set": bson.M{
-			"email":     user.Email,
-			"firstName": user.FirstName,
-			"lastName":  user.LastName,
-			"updatedAt": user.UpdatedAt,
+			"email":        user.Email,
+			"firstName":    user.FirstName,
+			"lastName":     user.LastName,
+			"phone":        user.Phone,
+			"organization": user.Organization,
+			"orgType":      user.OrgType,
+			"updatedAt":    user.UpdatedAt,
 		},
 	}
 
@@ -159,12 +215,12 @@ func (r *MongoUserRepository) Update(ctx context.Context, user models.User) (mod
 	}
 
 	// Decode updated user
-	var updatedUser models.User
-	if err := result.Decode(&updatedUser); err != nil {
+	var doc userDoc
+	if err := result.Decode(&doc); err != nil {
 		return models.User{}, fmt.Errorf("%w: %v", ErrDatabase, err)
 	}
 
-	return updatedUser, nil
+	return doc.toModel(), nil
 }
 
 // Delete removes a user from the database
