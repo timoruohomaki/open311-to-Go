@@ -2,12 +2,22 @@ package handlers
 
 import (
 	"context"
+	"encoding/xml"
 	"net/http"
 	"time"
 
 	"github.com/timoruohomaki/open311-to-Go/internal/repository"
 	"github.com/timoruohomaki/open311-to-Go/pkg/logger"
 )
+
+// healthResponse is the /health body. It is a struct (not a map) so it marshals
+// to both JSON and XML — encoding/xml cannot marshal maps.
+type healthResponse struct {
+	XMLName   xml.Name `json:"-" xml:"health"`
+	Status    string   `json:"status" xml:"status"`
+	Database  string   `json:"database" xml:"database"`
+	Timestamp string   `json:"timestamp" xml:"timestamp"`
+}
 
 // HealthHandler reports service liveness and MongoDB connectivity.
 type HealthHandler struct {
@@ -29,19 +39,19 @@ func (h *HealthHandler) Health(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
-	status := map[string]string{
-		"status":    "healthy",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	resp := healthResponse{
+		Status:    "healthy",
+		Database:  "ok",
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}
 
 	if err := h.db.Ping(ctx); err != nil {
 		h.log.Errorf("health check: MongoDB ping failed: %v", err)
-		status["status"] = "unhealthy"
-		status["database"] = "unreachable"
-		h.SendResponse(w, r, http.StatusServiceUnavailable, status)
+		resp.Status = "unhealthy"
+		resp.Database = "unreachable"
+		h.SendResponse(w, r, http.StatusServiceUnavailable, resp)
 		return
 	}
 
-	status["database"] = "ok"
-	h.SendResponse(w, r, http.StatusOK, status)
+	h.SendResponse(w, r, http.StatusOK, resp)
 }

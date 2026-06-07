@@ -34,9 +34,14 @@ prefix. The current code uses `/api/v1/`; migrating it is part of the overhaul
 - Every resource is available as **JSON** and **XML**.
 - GeoReport convention puts the format in the path extension:
   `/services.json`, `/services.xml`, `/requests/{id}.json`.
-- This project _additionally_ negotiates via the `Accept` header
-  (`application/json` default, `application/xml`). `Content-Type` is required and
-  validated on `POST`/`PUT` by `ContentTypeMiddleware`.
+- This project _additionally_ negotiates via the `Accept` header. It is
+  **JSON-first**: XML is returned only when the client explicitly prefers it
+  (`Accept: application/xml` / `text/xml`) and is not a browser — a browser's
+  `Accept` contains `text/html`, so browsers and default clients get JSON
+  (`httputil.WantsXML`). `Content-Type` is required and validated on `POST`/`PUT`
+  by `ContentTypeMiddleware`.
+- Response bodies must be structs/slices, **not Go maps** — `encoding/xml`
+  cannot marshal maps, which would break the XML path.
 - **Response shape:** bare Open311 documents — success responses write the data
   directly (a JSON array/object, or the XML collection element) with no envelope;
   errors use the `errors` document (see Error format). Helpers:
@@ -290,23 +295,33 @@ Passing `extensions=true` enriches responses:
   list for multiple images) points to an external media server. Validate/allow-list
   hosts on ingest. _(Adopted.)_
 
-### 7.3 Project extension — inline `properties` (PSK 5970)
-To link citizen feedback to **ISO 55000** asset-management practice, we extend
-`service_request` with an inline `properties` object of user-annotated
-key/value pairs. This supports records conforming to the Finnish **PSK 5970**
-standard (schema for cases and events).
+### 7.3 Inline `properties` extension (Boston extras + PSK 5970)
+**Implemented.** `service_request` carries an inline `properties` object — an open
+map of **string** key/value pairs for fields with no Open311 equivalent. It serves
+two purposes:
+- **Per-jurisdiction extras** — e.g. Boston's `assigned_team`, `closure_reason`,
+  `on_time`, `pwd_district`, `ward`, `precinct`, `neighborhood` (mapping in
+  [dictionaries/boston-311.yaml](dictionaries/boston-311.yaml)).
+- **PSK 5970 / ISO 55000** case-and-event annotations linking feedback to assets.
+
 ```json
 {
-  "service_request_id": "...",
+  "service_request_id": "BCS-00059336",
+  "status": "closed",
   "properties": {
+    "closure_reason": "Resolved",
+    "on_time": "ONTIME",
+    "pwd_district": "1B",
     "asset_id": "BRIDGE-0042",
-    "psk5970:event_class": "inspection",
-    "psk5970:condition_grade": "3"
+    "psk5970:event_class": "inspection"
   }
 }
 ```
-> _(planned)_ Exact key vocabulary TBD. Keep it an open map so unknown keys pass
-> through; validate known namespaces (`psk5970:*`) when a schema is finalized.
+- **JSON:** a plain object. **XML:** `<properties><property key="k">v</property>…`
+  (stable, key-sorted; round-trips via a custom (un)marshaler on the `Properties`
+  type). **BSON:** a `properties` subdocument. Empty ⇒ omitted from all formats.
+- Unknown keys pass through unchanged; the API does not enforce a vocabulary
+  (the dictionary is reference-only). Values are strings.
 
 ### 7.4 NPS API
 **NPS = Net Promoter Score** (satisfaction feedback), *not* National Park
@@ -471,6 +486,7 @@ feedback is the same append-only shape, but lives in its own
 | Rate limiting | 10/min, `429` + `Retry-After` | ✅ configurable (`RATE_LIMIT_RPM`, default off) |
 | Health check | `GET /health` (DB ping) | ✅ implemented |
 | Response shape | bare Open311 docs / `errors` | ✅ normalized (no `{status,data}` envelope) |
+| Jurisdiction extras | `properties` extension | ✅ inline `properties` (JSON/XML/BSON); Boston mapped in [dictionaries/](dictionaries/boston-311.yaml) |
 | XML schema validation | required | not started |
 | BSON mapping | `_id` mapped, names consistent | ✅ fixed (persistence-DTO pattern) |
 | Storage / collections | regular collections + GeoJSON `2dsphere`, unique `service_request_id` (decided; not time-series) | no indexes defined yet |
@@ -491,7 +507,7 @@ feedback is the same append-only shape, but lives in its own
 - [x] Response-envelope normalization (bare Open311 docs + `errors` format)
 - [ ] XML schema validation
 - [ ] External-media (Helsinki) support — _localization deferred; English only_
-- [ ] `properties` (PSK 5970) passthrough + validation
+- [x] Inline `properties` extension (Boston extras + PSK 5970), JSON/XML/BSON; example dictionary in [dictionaries/boston-311.yaml](dictionaries/boston-311.yaml)
 - [ ] Integrate the NPS (Net Promoter Score) API as a satisfaction data source ([nps-api](https://github.com/timoruohomaki/nps-api))
 - [x] MongoDB X.509 (`MONGODB-X509` / `$external`) cert auth wired in `connect()` (see [config.example.json](src/config/config.example.json))
 - [x] Config migrated to env vars (12-factor; `.env` for local dev, see [.env.example](src/.env.example))

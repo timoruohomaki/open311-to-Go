@@ -164,7 +164,7 @@ func (h *ServiceRequestHandler) sendServiceRequests(w http.ResponseWriter, r *ht
 	if len(status) > 0 {
 		code = status[0]
 	}
-	if strings.Contains(r.Header.Get("Accept"), "application/xml") {
+	if httputil.WantsXML(r) {
 		h.SendResponse(w, r, code, models.ServiceRequests{Items: results})
 		return
 	}

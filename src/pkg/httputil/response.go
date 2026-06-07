@@ -8,15 +8,22 @@ import (
 	"strings"
 )
 
-// wantsXML reports whether the client asked for XML via the Accept header.
-func wantsXML(r *http.Request) bool {
-	return strings.Contains(r.Header.Get("Accept"), "application/xml")
+// WantsXML reports whether the client explicitly prefers XML. The API is
+// JSON-first: XML is returned only when the Accept header names an XML media type
+// and is not a browser request. Browsers send "text/html,…,application/xml;q=0.9",
+// so without the text/html guard they would receive XML for everything.
+func WantsXML(r *http.Request) bool {
+	accept := r.Header.Get("Accept")
+	if strings.Contains(accept, "text/html") {
+		return false
+	}
+	return strings.Contains(accept, "application/xml") || strings.Contains(accept, "text/xml")
 }
 
 // Send writes data directly (no envelope) in the format chosen by the Accept
 // header. The data value carries its own json/xml struct tags.
 func Send(w http.ResponseWriter, r *http.Request, statusCode int, data interface{}) error {
-	if wantsXML(r) {
+	if WantsXML(r) {
 		return SendXML(w, statusCode, data)
 	}
 	return SendJSON(w, statusCode, data)
@@ -53,7 +60,7 @@ type APIErrors struct {
 // SendError writes an error response in the Open311 errors format.
 func SendError(w http.ResponseWriter, r *http.Request, statusCode int, message string) error {
 	payload := APIErrors{Errors: []APIError{{Code: statusCode, Description: message}}}
-	if wantsXML(r) {
+	if WantsXML(r) {
 		return SendXML(w, statusCode, payload)
 	}
 	return SendJSON(w, statusCode, payload)

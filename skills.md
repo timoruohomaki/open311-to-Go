@@ -80,11 +80,17 @@ defaults and requires only `MONGODB_URI`.
   window per client via X-Forwarded-For; `/health` exempt; `429` + `Retry-After`).
   0 disables (default).
 - **Responses:** bare Open311 docs via `httputil.Send` (no envelope); errors via
-  `httputil.SendError` (`{errors:[{code,description}]}`). Middleware order:
-  log → rate-limit → API-key → content-type.
+  `httputil.SendError` (`{errors:[{code,description}]}`). JSON-first —
+  `httputil.WantsXML` returns XML only for explicit non-browser XML clients.
+  **Return structs/slices, never Go maps** (encoding/xml can't marshal maps).
+  Middleware order: log → rate-limit → API-key → content-type.
 - **Indexes:** `repository.EnsureIndexes` runs at startup (idempotent). New
   query fields should get an index there; `Create` derives a GeoJSON `location`.
 - **Health:** `GET /health` pings MongoDB (`200` healthy / `503` unhealthy).
+- **Extras / `properties`:** jurisdiction-specific fields with no Open311
+  equivalent go in the `service_request.properties` string map (JSON object; XML
+  `<property key>`; BSON subdoc). Per-jurisdiction column→field mappings live in
+  [dictionaries/](dictionaries/) (reference only; the API doesn't load them).
 
 ---
 

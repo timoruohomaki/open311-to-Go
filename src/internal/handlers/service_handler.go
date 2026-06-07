@@ -3,7 +3,6 @@ package handlers
 import (
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/timoruohomaki/open311-to-Go/domain/models"
 	"github.com/timoruohomaki/open311-to-Go/internal/repository"
@@ -36,7 +35,7 @@ func (h *ServiceHandler) GetServices(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// For XML responses, wrap in Services struct
-	if strings.Contains(r.Header.Get("Accept"), "application/xml") {
+	if httputil.WantsXML(r) {
 		h.SendResponse(w, r, http.StatusOK, models.Services{Items: services})
 	} else {
 		h.SendResponse(w, r, http.StatusOK, services)
@@ -153,5 +152,5 @@ func (h *ServiceHandler) DeleteService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.SendResponse(w, r, http.StatusOK, map[string]string{"message": "Service deleted successfully"})
+	h.SendResponse(w, r, http.StatusOK, MessageResponse{Message: "Service deleted successfully"})
 }

@@ -15,6 +15,13 @@ type BaseHandler struct {
 	log logger.Logger
 }
 
+// MessageResponse is a simple {message} body for actions that have no resource
+// to return (e.g. delete). A struct so it marshals to both JSON and XML.
+type MessageResponse struct {
+	XMLName xml.Name `json:"-" xml:"response"`
+	Message string   `json:"message" xml:"message"`
+}
+
 // DecodeRequest decodes the request body based on Content-Type
 func (h *BaseHandler) DecodeRequest(r *http.Request, v interface{}) error {
 	contentType := r.Header.Get("Content-Type")
